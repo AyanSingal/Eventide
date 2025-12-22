@@ -76,7 +76,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\Users\ayansi\Documents\Visual Studio 2022\Libraries\stb-master;C:\Users\ayansi\Documents\Visual Studio 2022\Libraries\glfw-3.4.bin.WIN64\include;C:\Users\ayansi\Documents\Visual Studio 2022\Libraries\glm;$(VULKAN_SDK)\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\ayansi\Documents\Visual Studio 2022\Libraries\stb-master;C:\Users\ayansi\Documents\Visual Studio 2022\Libraries\glfw-3.4.bin.WIN64\include;C:\Users\ayansi\Documents\Visual Studio 2022\Libraries\glm;$(VULKAN_SDK)\Include;C:\Users\ayansi\Documents\Visual Studio 2022\Libraries\tinyobjloader;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
@@ -94,7 +94,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>WIN32;NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\Users\ayansi\Documents\Visual Studio 2022\Libraries\stb-master;C:\Users\ayansi\Documents\Visual Studio 2022\Libraries\glfw-3.4.bin.WIN64\include;C:\Users\ayansi\Documents\Visual Studio 2022\Libraries\glm;$(VULKAN_SDK)\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\ayansi\Documents\Visual Studio 2022\Libraries\stb-master;C:\Users\ayansi\Documents\Visual Studio 2022\Libraries\glfw-3.4.bin.WIN64\include;C:\Users\ayansi\Documents\Visual Studio 2022\Libraries\glm;$(VULKAN_SDK)\Include;C:\Users\ayansi\Documents\Visual Studio 2022\Libraries\tinyobjloader;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
@@ -112,7 +112,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>_DEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\Users\ayansi\Documents\Visual Studio 2022\Libraries\stb-master;C:\Users\ayansi\Documents\Visual Studio 2022\Libraries\glfw-3.4.bin.WIN64\include;C:\Users\ayansi\Documents\Visual Studio 2022\Libraries\glm;$(VULKAN_SDK)\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\ayansi\Documents\Visual Studio 2022\Libraries\stb-master;C:\Users\ayansi\Documents\Visual Studio 2022\Libraries\glfw-3.4.bin.WIN64\include;C:\Users\ayansi\Documents\Visual Studio 2022\Libraries\glm;$(VULKAN_SDK)\Include;C:\Users\ayansi\Documents\Visual Studio 2022\Libraries\tinyobjloader;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
@@ -130,7 +130,7 @@
       <SDLCheck>true</SDLCheck>
       <PreprocessorDefinitions>NDEBUG;_CONSOLE;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <ConformanceMode>true</ConformanceMode>
-      <AdditionalIncludeDirectories>C:\Users\ayansi\Documents\Visual Studio 2022\Libraries\stb-master;C:\Users\ayansi\Documents\Visual Studio 2022\Libraries\glfw-3.4.bin.WIN64\include;C:\Users\ayansi\Documents\Visual Studio 2022\Libraries\glm;$(VULKAN_SDK)\Include;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>C:\Users\ayansi\Documents\Visual Studio 2022\Libraries\stb-master;C:\Users\ayansi\Documents\Visual Studio 2022\Libraries\glfw-3.4.bin.WIN64\include;C:\Users\ayansi\Documents\Visual Studio 2022\Libraries\glm;$(VULKAN_SDK)\Include;C:\Users\ayansi\Documents\Visual Studio 2022\Libraries\tinyobjloader;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <LanguageStandard>stdcpp20</LanguageStandard>
     </ClCompile>
     <Link>
@@ -151,6 +151,7 @@
   </ItemGroup>
   <ItemGroup>
     <Image Include="textures\texture.jpg" />
+    <Image Include="textures\viking_room.png" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
