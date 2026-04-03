@@ -123,10 +123,10 @@ struct UniformBufferObject
     alignas(16) glm::mat4 proj;
 };
 
-
-
 class VulkanContext
 {
+    static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData, void *pUserData);
+
 public:
     void init(GLFWwindow *window);
     void cleanup();
