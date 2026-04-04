@@ -404,7 +404,7 @@ VkResult VulkanContext::CreateDebugUtilsMessengerEXT(VkInstance instance, const 
     }
 }
 
-static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData, void *pUserData)
+VKAPI_ATTR VkBool32 VKAPI_CALL VulkanContext::debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT *pCallbackData, void *pUserData)
 {
     std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
 
@@ -457,4 +457,16 @@ bool VulkanContext::checkValidationLayerSupport()
     }
 
     return true;
+}
+
+void VulkanContext::cleanup()
+{
+    vkDestroyDevice(device, nullptr);
+    if (enableValidationLayers)
+    {
+        DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
+    }
+
+    vkDestroySurfaceKHR(instance, surface, nullptr);
+    vkDestroyInstance(instance, nullptr);
 }
