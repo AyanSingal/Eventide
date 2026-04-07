@@ -29,14 +29,13 @@
 
 #include "VulkanContext.h"
 #include "Vertex.h"
+#include "CommandManager.h"
 
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
 
 const std::string MODEL_PATH = "models/viking_room.obj";
 const std::string TEXTURE_PATH = "textures/viking_room.png";
-
-const int MAX_FRAMES_IN_FLIGHT = 2;
 
 class HelloTriangleApplication {
 public:
@@ -59,9 +58,6 @@ private:
     std::vector<VkDescriptorSet> descriptorSets;
     VkPipelineLayout pipelineLayout;
     VkPipeline graphicsPipeline;
-    VkCommandPool graphicsCommandPool;
-    VkCommandPool transferCommandPool;
-    std::vector<VkCommandBuffer> graphicsCommandBuffers;
     std::vector<VkSemaphore> imageAvailableSemaphores;
     std::vector<VkSemaphore> renderFinishedSemaphores;
     uint32_t currentFrame = 0;
@@ -89,6 +85,7 @@ private:
     VkImageView colorImageView;
 
     VulkanContext context;
+    CommandManager commandManager;
 
     void initWindow() {
         glfwInit();
@@ -101,11 +98,11 @@ private:
 
     void initVulkan() {
         context.init(window);
+        commandManager.init(context);
         createSwapChain();
         createImageViews();
         createDescriptorSetLayout();
         createGraphicsPipeline();
-        createCommandPools();
         createTextureImage();
         createTextureImageView();
         createTextureSampler();
@@ -117,7 +114,6 @@ private:
         createDescriptorSets();
         createColorResources();
         createDepthResources();
-        createCommandBuffers();
         createSyncObjects();
     }
 
@@ -438,7 +434,7 @@ private:
             throw std::runtime_error("texture image format does not support linear blitting!");
         }
 
-        VkCommandBuffer commandBuffer = beginSingleTimeCommands(graphicsCommandPool);
+        VkCommandBuffer commandBuffer = commandManager.beginSingleTimeCommands(commandManager.graphicsCommandPool);
 
         VkImageMemoryBarrier barrier{};
         barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -514,7 +510,7 @@ private:
             0, nullptr,
             1, &barrier);
 
-        endSingleTimeCommands(commandBuffer, graphicsCommandPool, context.graphicsQueue);
+        commandManager.endSingleTimeCommands(commandBuffer, commandManager.graphicsCommandPool, context.graphicsQueue);
     }
 
     void createTextureImageView() {
@@ -609,7 +605,7 @@ private:
     }
 
     void transitionImageLayout(VkImage image, VkFormat format, VkImageLayout oldLayout, VkImageLayout newLayout, uint32_t mipLevels) {
-        VkCommandBuffer commandBuffer = beginSingleTimeCommands(graphicsCommandPool);
+        VkCommandBuffer commandBuffer = commandManager.beginSingleTimeCommands(commandManager.graphicsCommandPool);
 
         VkImageMemoryBarrier barrier{};
         barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -648,12 +644,12 @@ private:
 
         vkCmdPipelineBarrier(commandBuffer, sourceStage, destinationStage, 0, 0, nullptr, 0, nullptr, 1, &barrier);
 
-        endSingleTimeCommands(commandBuffer, graphicsCommandPool, context.graphicsQueue);
+        commandManager.endSingleTimeCommands(commandBuffer, commandManager.graphicsCommandPool, context.graphicsQueue);
     }
 
     void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height) {
 
-        VkCommandBuffer commandBuffer = beginSingleTimeCommands(transferCommandPool);
+        VkCommandBuffer commandBuffer = commandManager.beginSingleTimeCommands(commandManager.transferCommandPool);
         
         VkBufferImageCopy region{};
         region.bufferOffset = 0;
@@ -681,79 +677,8 @@ private:
             &region
         );
 
-        endSingleTimeCommands(commandBuffer, transferCommandPool, context.transferQueue);
+        commandManager.endSingleTimeCommands(commandBuffer, commandManager.transferCommandPool, context.transferQueue);
 
-    }
-
-    void createCommandPools() {
-        QueueFamilyIndices queueFamilyIndices = context.findQueueFamilies(context.physicalDevice);
-
-        VkCommandPoolCreateInfo graphicsPoolInfo{};
-        graphicsPoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-        graphicsPoolInfo.flags = VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT;
-        graphicsPoolInfo.queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
-
-        VkCommandPoolCreateInfo transferPoolInfo{};
-        transferPoolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-        transferPoolInfo.flags = VK_COMMAND_POOL_CREATE_TRANSIENT_BIT;
-        transferPoolInfo.queueFamilyIndex = queueFamilyIndices.transferFamily.value();
-
-        if (vkCreateCommandPool(context.device, &graphicsPoolInfo, nullptr, &graphicsCommandPool) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create graphics command pool!");
-        }
-
-        if (vkCreateCommandPool(context.device, &transferPoolInfo, nullptr, &transferCommandPool) != VK_SUCCESS) {
-            throw std::runtime_error("failed to create transfer command pool!");
-        }
-
-    }
-
-    void createCommandBuffers() {
-        //Graphics command buffers setup
-        graphicsCommandBuffers.resize(MAX_FRAMES_IN_FLIGHT);
-        VkCommandBufferAllocateInfo graphicsBufferAllocInfo{};
-        graphicsBufferAllocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-        graphicsBufferAllocInfo.commandPool = graphicsCommandPool;
-        graphicsBufferAllocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-        graphicsBufferAllocInfo.commandBufferCount = (uint32_t) graphicsCommandBuffers.size();
-
-        if (vkAllocateCommandBuffers(context.device, &graphicsBufferAllocInfo, graphicsCommandBuffers.data()) != VK_SUCCESS) {
-            throw std::runtime_error("failed to allocate graphics command buffers!");
-        }
-
-    }
-
-    VkCommandBuffer beginSingleTimeCommands(VkCommandPool commandPool) {
-        VkCommandBufferAllocateInfo allocInfo{};
-        allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-        allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-        allocInfo.commandPool = commandPool;
-        allocInfo.commandBufferCount = 1;
-
-        VkCommandBuffer commandBuffer;
-        vkAllocateCommandBuffers(context.device, &allocInfo, &commandBuffer);
-
-        VkCommandBufferBeginInfo beginInfo{};
-        beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-        beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-        vkBeginCommandBuffer(commandBuffer, &beginInfo);
-
-        return commandBuffer;
-    }
-
-    void endSingleTimeCommands(VkCommandBuffer commandBuffer, VkCommandPool commandPool, VkQueue queueFamily) {
-        vkEndCommandBuffer(commandBuffer);
-
-        VkSubmitInfo submitInfo{};
-        submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-        submitInfo.commandBufferCount = 1;
-        submitInfo.pCommandBuffers = &commandBuffer;
-
-        vkQueueSubmit(queueFamily, 1, &submitInfo, VK_NULL_HANDLE);
-        vkQueueWaitIdle(queueFamily);
-
-        vkFreeCommandBuffers(context.device, commandPool, 1, &commandBuffer);
     }
 
     void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex) {
@@ -932,7 +857,7 @@ private:
 
     void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
 
-        VkCommandBuffer commandBuffer = beginSingleTimeCommands(transferCommandPool);
+        VkCommandBuffer commandBuffer = commandManager.beginSingleTimeCommands(commandManager.transferCommandPool);
 
         VkBufferCopy copyRegion{};
         copyRegion.srcOffset = 0;
@@ -940,7 +865,7 @@ private:
         copyRegion.size = size;
         vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
 
-        endSingleTimeCommands(commandBuffer, transferCommandPool, context.transferQueue);
+        commandManager.endSingleTimeCommands(commandBuffer, commandManager.transferCommandPool, context.transferQueue);
     }
 
     void createVertexBuffer() {
@@ -1214,8 +1139,8 @@ private:
 
         updateUniformBuffer(currentFrame);
 
-        vkResetCommandBuffer(graphicsCommandBuffers[currentFrame], 0);
-        recordCommandBuffer(graphicsCommandBuffers[currentFrame], imageIndex);
+        vkResetCommandBuffer(commandManager.graphicsCommandBuffers[currentFrame], 0);
+        recordCommandBuffer(commandManager.graphicsCommandBuffers[currentFrame], imageIndex);
 
         uint64_t signalValues[] = {
         0,            // Binary semaphore (ignored, but must be present)
@@ -1243,7 +1168,7 @@ private:
         submitInfo.pWaitSemaphores = waitSemaphores;
         submitInfo.pWaitDstStageMask = waitStages;
         submitInfo.commandBufferCount = 1;
-        submitInfo.pCommandBuffers = &graphicsCommandBuffers[currentFrame];
+        submitInfo.pCommandBuffers = &commandManager.graphicsCommandBuffers[currentFrame];
         submitInfo.signalSemaphoreCount = 2;
         submitInfo.pSignalSemaphores = signalSemaphores;
 
@@ -1336,8 +1261,7 @@ private:
             vkDestroySemaphore(context.device, renderFinishedSemaphores[i], nullptr);
         }
         
-        vkDestroyCommandPool(context.device, graphicsCommandPool, nullptr);
-        vkDestroyCommandPool(context.device, transferCommandPool, nullptr);
+        commandManager.cleanup();
         vkDestroyPipeline(context.device, graphicsPipeline, nullptr);
         vkDestroyPipelineLayout(context.device, pipelineLayout, nullptr);
    
