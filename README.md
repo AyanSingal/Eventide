@@ -1,6 +1,6 @@
 # Eventide
 
-A Vulkan 1.2 renderer built from scratch in C++ as a learning project and portfolio piece. Currently renders a textured, rotating 3D model with MSAA, dynamic rendering, and timeline semaphore synchronization.
+A Vulkan 1.2 renderer built from scratch in C++. Currently renders a textured, rotating 3D model with MSAA, dynamic rendering, and timeline semaphore synchronization.
 
 ## Features
 
@@ -20,11 +20,12 @@ main.cpp (application entry, draw loop, scene-specific logic)
 ├── CommandManager      — Command pools, command buffers, one-shot submissions
 ├── ResourceManager     — Buffer/image creation, memory allocation, data transfer
 └── VulkanSwapchain     — Swapchain lifecycle, image views, MSAA/depth resources
+└── VulkanTexture       — Texture creation, management, mipmaps
 ```
 
 Shared headers: `VulkanTypes.h` (queue/swapchain structs, validation config), `Vertex.h` (vertex layout, UBO)
 
-Remaining modules (in progress): Texture, Model, Pipeline, Descriptors, Renderer
+Remaining modules (in progress): Model, Pipeline, Descriptors, Renderer
 
 ## Building
 
@@ -51,7 +52,7 @@ The executable, compiled shaders, models, and textures are output to `build/`.
 ## Roadmap
 
 **Phase 1 — Foundation refactor** (current)
-Breaking the monolith into clean modules. Targeting resume-worthy code quality with clear separation of concerns.
+Breaking the monolith into clean modules with clear separation of concerns.
 
 **Phase 2 — Renderer features**
 Scene abstraction, glTF loading, material system, ImGui debug UI, push constants, multiple descriptor sets.
