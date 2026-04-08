@@ -21,11 +21,12 @@ main.cpp (application entry, draw loop, scene-specific logic)
 ├── ResourceManager     — Buffer/image creation, memory allocation, data transfer
 └── VulkanSwapchain     — Swapchain lifecycle, image views, MSAA/depth resources
 └── VulkanTexture       — Texture creation, management, mipmaps
+└── VulkanModel         — OBJ model loading, vertex buffer, index buffer
 ```
 
 Shared headers: `VulkanTypes.h` (queue/swapchain structs, validation config), `Vertex.h` (vertex layout, UBO)
 
-Remaining modules (in progress): Model, Pipeline, Descriptors, Renderer
+Remaining modules (in progress): Pipeline, Descriptors, Renderer
 
 ## Building
 
