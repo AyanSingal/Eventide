@@ -19,7 +19,6 @@ public:
     VkExtent2D swapChainExtent;
 
     void init(VulkanContext& context, ResourceManager& resourceManager, GLFWwindow* window);
-    VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels);
     void recreate();
     void cleanupSwapChain();
 
