@@ -1,3 +1,4 @@
+#define TINYOBJLOADER_IMPLEMENTATION
 #include "VulkanModel.h"
 #include <tiny_obj_loader.h>
 
