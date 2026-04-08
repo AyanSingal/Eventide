@@ -22,11 +22,10 @@ main.cpp (application entry, draw loop, scene-specific logic)
 └── VulkanSwapchain     — Swapchain lifecycle, image views, MSAA/depth resources
 └── VulkanTexture       — Texture creation, management, mipmaps
 └── VulkanModel         — OBJ model loading, vertex buffer, index buffer
+└── Renderer            — Graphics pipeline, descriptors, sync, draw loop
 ```
 
 Shared headers: `VulkanTypes.h` (queue/swapchain structs, validation config), `Vertex.h` (vertex layout, UBO)
-
-Remaining modules (in progress): Pipeline, Descriptors, Renderer
 
 ## Building
 
@@ -52,10 +51,10 @@ The executable, compiled shaders, models, and textures are output to `build/`.
 
 ## Roadmap
 
-**Phase 1 — Foundation refactor** (current)
+**Phase 1 — Foundation refactor** (complete)
 Breaking the monolith into clean modules with clear separation of concerns.
 
-**Phase 2 — Renderer features**
+**Phase 2 — Renderer features** (current)
 Scene abstraction, glTF loading, material system, ImGui debug UI, push constants, multiple descriptor sets.
 
 **Phase 3 — Path tracing**
