@@ -29,6 +29,7 @@ find_package(Vulkan REQUIRED)
 #        tinyobjloader/
 # ──────────────────────────────────────────────
 set(LIB_DIR "${CMAKE_SOURCE_DIR}/external")
+set(IMGUI_DIR "${LIB_DIR}/imgui")
 
 set(GLFW_INCLUDE_DIR "${LIB_DIR}/glfw-3.4.bin.WIN64/include")
 set(GLFW_LIB         "${LIB_DIR}/glfw-3.4.bin.WIN64/lib-vc2022/glfw3.lib")
@@ -39,7 +40,24 @@ set(TINYOBJ_INCLUDE_DIR "${LIB_DIR}/tinyobjloader")
 # ──────────────────────────────────────────────
 # 3. Build the executable
 # ──────────────────────────────────────────────
-add_executable(${PROJECT_NAME} main.cpp VulkanContext.cpp CommandManager.cpp ResourceManager.cpp VulkanSwapchain.cpp VulkanTexture.cpp VulkanModel.cpp Renderer.cpp Camera.cpp)
+add_executable(${PROJECT_NAME} 
+    main.cpp 
+    VulkanContext.cpp 
+    CommandManager.cpp 
+    ResourceManager.cpp 
+    VulkanSwapchain.cpp 
+    VulkanTexture.cpp 
+    VulkanModel.cpp 
+    Renderer.cpp 
+    Camera.cpp
+    ${IMGUI_DIR}/imgui.cpp
+    ${IMGUI_DIR}/imgui_draw.cpp
+    ${IMGUI_DIR}/imgui_tables.cpp
+    ${IMGUI_DIR}/imgui_widgets.cpp
+    ${IMGUI_DIR}/imgui_demo.cpp
+    ${IMGUI_DIR}/imgui_impl_glfw.cpp
+    ${IMGUI_DIR}/imgui_impl_vulkan.cpp
+)
 
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${Vulkan_INCLUDE_DIRS}
@@ -47,6 +65,7 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${GLM_INCLUDE_DIR}
     ${STB_INCLUDE_DIR}
     ${TINYOBJ_INCLUDE_DIR}
+    ${IMGUI_DIR}
 )
 
 target_link_libraries(${PROJECT_NAME} PRIVATE
