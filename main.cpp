@@ -45,6 +45,11 @@ private:
     float lastMouseY = 300.0f;
     bool firstMouse = true;
 
+
+    glm::mat4 baseRotation = glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+    std::vector<glm::mat4> modelMatrices = {glm::translate(glm::mat4(1.0f), glm::vec3(-1.0f, 0.0f, 0.0f)) * baseRotation, 
+                                            glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f)) * baseRotation};
+
     void initWindow()
     {
         glfwInit();
@@ -64,7 +69,7 @@ private:
         swapchain.init(context, resourceManager, window);
         texture.init(context, resourceManager, commandManager, TEXTURE_PATH);
         model.init(context, resourceManager, MODEL_PATH);
-        renderer.init(context, resourceManager, commandManager, swapchain, texture, model, camera);
+        renderer.init(context, resourceManager, commandManager, swapchain, texture, model, camera, modelMatrices);
     }
 
     void mainLoop()

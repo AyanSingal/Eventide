@@ -18,7 +18,16 @@ class Renderer
 {
 
 public:
-    void init(VulkanContext &context, ResourceManager &resourceManager, CommandManager &commandManager, VulkanSwapchain &swapchain, VulkanTexture &texture, VulkanModel &model, Camera &camera);
+    void init(VulkanContext &context, 
+        ResourceManager &resourceManager, 
+        CommandManager &commandManager, 
+        VulkanSwapchain &swapchain, 
+        VulkanTexture &texture, 
+        VulkanModel &model, 
+        Camera &camera,
+        const std::vector<glm::mat4>& modelMatrices);
+        
+
     void drawFrame();
     void cleanup();
 
@@ -30,6 +39,7 @@ private:
     VulkanTexture* texture = nullptr;
     VulkanModel* model = nullptr;
     Camera* camera = nullptr;
+    std::vector<glm::mat4> modelMatrices;
 
     VkDescriptorPool descriptorPool;
     VkDescriptorSetLayout descriptorSetLayout;

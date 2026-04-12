@@ -1,6 +1,6 @@
 #include "Renderer.h"
 
-void Renderer::init(VulkanContext &context, ResourceManager &resourceManager, CommandManager &commandManager, VulkanSwapchain &swapchain, VulkanTexture &texture, VulkanModel &model, Camera &camera)
+void Renderer::init(VulkanContext &context, ResourceManager &resourceManager, CommandManager &commandManager, VulkanSwapchain &swapchain, VulkanTexture &texture, VulkanModel &model, Camera &camera, const std::vector<glm::mat4>& modelMatrices)
 {
     this->context = &context;
     this->resourceManager = &resourceManager;
@@ -9,6 +9,7 @@ void Renderer::init(VulkanContext &context, ResourceManager &resourceManager, Co
     this->texture = &texture;
     this->model = &model;
     this->camera = &camera;
+    this->modelMatrices = modelMatrices;
     createDescriptorSetLayout();
     createGraphicsPipeline();
     createUniformBuffers();
@@ -452,14 +453,13 @@ void Renderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
 
     glm::mat4 baseRotation = glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
 
-    glm::mat4 modelMatrix1 = glm::translate(glm::mat4(1.0f), glm::vec3(-1.0f, 0.0f, 0.0f)) * baseRotation;
-    vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &modelMatrix1);
-    vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(model->getIndicesSize()), 1, 0, 0, 0);
-
-    glm::mat4 modelMatrix2 = glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f)) * baseRotation;
-    vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &modelMatrix2);
-    vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(model->getIndicesSize()), 1, 0, 0, 0);
-
+    for (int i = 0; i < modelMatrices.size(); i++)
+    {
+        glm::mat4 modelMatrix = modelMatrices[i];
+        vkCmdPushConstants(commandBuffer, pipelineLayout, VK_SHADER_STAGE_VERTEX_BIT, 0, sizeof(glm::mat4), &modelMatrix);
+        vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(model->getIndicesSize()), 1, 0, 0, 0);
+    }
+    
     context->vkCmdEndRenderingKHR(commandBuffer);
 
     swapchainResolveBarrier.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
