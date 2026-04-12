@@ -9,6 +9,7 @@
 #include "VulkanTexture.h"
 #include "Vertex.h"
 #include "VulkanModel.h"
+#include "Camera.h"
 
 #include <chrono>
 #include <fstream>
@@ -17,7 +18,7 @@ class Renderer
 {
 
 public:
-    void init(VulkanContext &context, ResourceManager &resourceManager, CommandManager &commandManager, VulkanSwapchain &swapchain, VulkanTexture &texture, VulkanModel &model);
+    void init(VulkanContext &context, ResourceManager &resourceManager, CommandManager &commandManager, VulkanSwapchain &swapchain, VulkanTexture &texture, VulkanModel &model, Camera &camera);
     void drawFrame();
     void cleanup();
 
@@ -28,6 +29,7 @@ private:
     VulkanSwapchain *swapchain = nullptr;
     VulkanTexture* texture = nullptr;
     VulkanModel* model = nullptr;
+    Camera* camera = nullptr;
 
     VkDescriptorPool descriptorPool;
     VkDescriptorSetLayout descriptorSetLayout;

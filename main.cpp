@@ -10,6 +10,7 @@
 #include "VulkanTexture.h"
 #include "VulkanModel.h"
 #include "Renderer.h"
+#include "Camera.h"
 
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
@@ -38,6 +39,11 @@ private:
     VulkanTexture texture;
     VulkanModel model;
     Renderer renderer;
+    Camera camera;
+
+    float lastMouseX = 400.0f; // center of window
+    float lastMouseY = 300.0f;
+    bool firstMouse = true;
 
     void initWindow()
     {
@@ -47,6 +53,7 @@ private:
 
         window = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan", nullptr, nullptr);
         glfwSetWindowUserPointer(window, this);
+        glfwSetCursorPosCallback(window, mouseCallback);
     }
 
     void initVulkan()
@@ -57,14 +64,20 @@ private:
         swapchain.init(context, resourceManager, window);
         texture.init(context, resourceManager, commandManager, TEXTURE_PATH);
         model.init(context, resourceManager, MODEL_PATH);
-        renderer.init(context, resourceManager, commandManager, swapchain, texture, model);
+        renderer.init(context, resourceManager, commandManager, swapchain, texture, model, camera);
     }
 
     void mainLoop()
     {
+        float lastFrame = 0.0f;
         while (!glfwWindowShouldClose(window))
         {
+            float currentFrame = glfwGetTime();
+            float deltaTime = currentFrame - lastFrame;
+            lastFrame = currentFrame;
+
             glfwPollEvents();
+            camera.processKeyboard(window, deltaTime);
             renderer.drawFrame();
         }
 
@@ -81,6 +94,32 @@ private:
         context.cleanup();
         glfwDestroyWindow(window);
         glfwTerminate();
+    }
+
+    static void mouseCallback(GLFWwindow *window, double xPos, double yPos)
+    {
+        auto app = reinterpret_cast<Eventide *>(glfwGetWindowUserPointer(window));
+
+        if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) != GLFW_PRESS) {
+            app->firstMouse = true;
+            return;
+        }
+
+        if (app->firstMouse)
+        {
+            app->lastMouseX = xPos;
+            app->lastMouseY = yPos;
+            app->firstMouse = false;
+            return;
+        }
+
+        float xOffset = xPos - app->lastMouseX;
+        float yOffset = app->lastMouseY - yPos; // reversed: screen Y is top-down
+
+        app->lastMouseX = xPos;
+        app->lastMouseY = yPos;
+
+        app->camera.processMouse(xOffset, yOffset);
     }
 };
 

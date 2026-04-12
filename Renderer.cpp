@@ -1,6 +1,6 @@
 #include "Renderer.h"
 
-void Renderer::init(VulkanContext &context, ResourceManager &resourceManager, CommandManager &commandManager, VulkanSwapchain &swapchain, VulkanTexture &texture, VulkanModel &model)
+void Renderer::init(VulkanContext &context, ResourceManager &resourceManager, CommandManager &commandManager, VulkanSwapchain &swapchain, VulkanTexture &texture, VulkanModel &model, Camera &camera)
 {
     this->context = &context;
     this->resourceManager = &resourceManager;
@@ -8,6 +8,7 @@ void Renderer::init(VulkanContext &context, ResourceManager &resourceManager, Co
     this->swapchain = &swapchain;
     this->texture = &texture;
     this->model = &model;
+    this->camera = &camera;
     createDescriptorSetLayout();
     createGraphicsPipeline();
     createUniformBuffers();
@@ -600,10 +601,10 @@ void Renderer::updateUniformBuffer(uint32_t currentImage)
     float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
 
     UniformBufferObject ubo{};
-    ubo.model = glm::rotate(glm::mat4(1.0f), time * glm::radians(90.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-    ubo.proj = glm::perspective(glm::radians(45.0f), swapchain->swapChainExtent.width / (float)swapchain->swapChainExtent.height, 0.1f, 10.0f);
-    ubo.proj[1][1] *= -1;
+    ubo.model = glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
+    ubo.view = camera->getViewMatrix();
+    float aspectRatio = swapchain->swapChainExtent.width / (float)swapchain->swapChainExtent.height;
+    ubo.proj = camera->getProjectionMatrix(aspectRatio);
 
     memcpy(uniformBuffersMapped[currentImage], &ubo, sizeof(ubo));
 }

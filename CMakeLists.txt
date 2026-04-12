@@ -39,7 +39,7 @@ set(TINYOBJ_INCLUDE_DIR "${LIB_DIR}/tinyobjloader")
 # ──────────────────────────────────────────────
 # 3. Build the executable
 # ──────────────────────────────────────────────
-add_executable(${PROJECT_NAME} main.cpp VulkanContext.cpp CommandManager.cpp ResourceManager.cpp VulkanSwapchain.cpp VulkanTexture.cpp VulkanModel.cpp Renderer.cpp)
+add_executable(${PROJECT_NAME} main.cpp VulkanContext.cpp CommandManager.cpp ResourceManager.cpp VulkanSwapchain.cpp VulkanTexture.cpp VulkanModel.cpp Renderer.cpp Camera.cpp)
 
 target_include_directories(${PROJECT_NAME} PRIVATE
     ${Vulkan_INCLUDE_DIRS}
