@@ -11,6 +11,9 @@
 #include "VulkanModel.h"
 #include "Camera.h"
 
+#include "imgui.h"
+#include "imgui_impl_glfw.h"
+#include "imgui_impl_vulkan.h"
 #include <chrono>
 #include <fstream>
 
@@ -25,7 +28,8 @@ public:
         VulkanTexture &texture, 
         VulkanModel &model, 
         Camera &camera,
-        const std::vector<glm::mat4>& modelMatrices);
+        const std::vector<glm::mat4>& modelMatrices,
+        GLFWwindow* window);
         
 
     void drawFrame();
@@ -39,6 +43,7 @@ private:
     VulkanTexture* texture = nullptr;
     VulkanModel* model = nullptr;
     Camera* camera = nullptr;
+    GLFWwindow* window = nullptr;
     std::vector<glm::mat4> modelMatrices;
 
     VkDescriptorPool descriptorPool;
@@ -55,12 +60,15 @@ private:
     std::vector<VkDeviceMemory> uniformBuffersMemory;
     std::vector<void*> uniformBuffersMapped;
 
+    VkDescriptorPool imguiDescriptorPool;
+
     void createDescriptorSetLayout();
     void createGraphicsPipeline();
     void createUniformBuffers();
     void createDescriptorPool();
     void createDescriptorSets();
     void createSyncObjects();
+    void setupImgui();
     void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
     VkShaderModule createShaderModule(const std::vector<char>& code);
     void updateUniformBuffer(uint32_t currentImage);

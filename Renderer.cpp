@@ -1,6 +1,6 @@
 #include "Renderer.h"
 
-void Renderer::init(VulkanContext &context, ResourceManager &resourceManager, CommandManager &commandManager, VulkanSwapchain &swapchain, VulkanTexture &texture, VulkanModel &model, Camera &camera, const std::vector<glm::mat4>& modelMatrices)
+void Renderer::init(VulkanContext &context, ResourceManager &resourceManager, CommandManager &commandManager, VulkanSwapchain &swapchain, VulkanTexture &texture, VulkanModel &model, Camera &camera, const std::vector<glm::mat4>& modelMatrices, GLFWwindow* window)
 {
     this->context = &context;
     this->resourceManager = &resourceManager;
@@ -10,12 +10,52 @@ void Renderer::init(VulkanContext &context, ResourceManager &resourceManager, Co
     this->model = &model;
     this->camera = &camera;
     this->modelMatrices = modelMatrices;
+    this->window = window;
     createDescriptorSetLayout();
     createGraphicsPipeline();
     createUniformBuffers();
     createDescriptorPool();
     createDescriptorSets();
     createSyncObjects();
+    setupImgui();
+}
+
+void Renderer::setupImgui()
+{
+    VkDescriptorPoolSize imguiPoolSizes[] = {
+        {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1}};
+    VkDescriptorPoolCreateInfo imguiPoolInfo{};
+    imguiPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
+    imguiPoolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
+    imguiPoolInfo.maxSets = 1;
+    imguiPoolInfo.poolSizeCount = 1;
+    imguiPoolInfo.pPoolSizes = imguiPoolSizes;
+    vkCreateDescriptorPool(context->device, &imguiPoolInfo, nullptr, &imguiDescriptorPool);
+
+    IMGUI_CHECKVERSION();
+    ImGui::CreateContext();
+    ImGui::StyleColorsDark();
+
+    ImGui_ImplGlfw_InitForVulkan(window, true);
+
+    ImGui_ImplVulkan_InitInfo initInfo{};
+    initInfo.Instance = context->instance;
+    initInfo.PhysicalDevice = context->physicalDevice;
+    initInfo.Device = context->device;
+    initInfo.QueueFamily = context->findQueueFamilies(context->physicalDevice).graphicsFamily.value();
+    initInfo.Queue = context->graphicsQueue;
+    initInfo.DescriptorPool = imguiDescriptorPool;
+    initInfo.MinImageCount = 2;
+    initInfo.ImageCount = static_cast<uint32_t>(swapchain->swapChainImages.size());
+    initInfo.UseDynamicRendering = true;
+
+    initInfo.PipelineInfoMain.MSAASamples = context->msaaSamples;
+    initInfo.PipelineInfoMain.PipelineRenderingCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
+    initInfo.PipelineInfoMain.PipelineRenderingCreateInfo.colorAttachmentCount = 1;
+    initInfo.PipelineInfoMain.PipelineRenderingCreateInfo.pColorAttachmentFormats = &swapchain->swapChainImageFormat;
+    initInfo.PipelineInfoMain.PipelineRenderingCreateInfo.depthAttachmentFormat = context->findDepthFormat();
+
+    ImGui_ImplVulkan_Init(&initInfo);
 }
 
 void Renderer::createUniformBuffers()
@@ -460,6 +500,7 @@ void Renderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
         vkCmdDrawIndexed(commandBuffer, static_cast<uint32_t>(model->getIndicesSize()), 1, 0, 0, 0);
     }
     
+    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
     context->vkCmdEndRenderingKHR(commandBuffer);
 
     swapchainResolveBarrier.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
@@ -544,6 +585,18 @@ void Renderer::drawFrame()
     updateUniformBuffer(currentFrame);
 
     vkResetCommandBuffer(commandManager->graphicsCommandBuffers[currentFrame], 0);
+
+    ImGui_ImplVulkan_NewFrame();
+    ImGui_ImplGlfw_NewFrame();
+    ImGui::NewFrame();
+    ImGui::Begin("Debug");
+    ImGui::Text("Camera Position: (%.2f, %.2f, %.2f)",
+        camera->position.x, camera->position.y, camera->position.z);
+    ImGui::Text("Frame Time: %.3f ms", 1000.0f / ImGui::GetIO().Framerate);
+    ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
+    ImGui::End();
+    ImGui::Render();
+
     recordCommandBuffer(commandManager->graphicsCommandBuffers[currentFrame], imageIndex);
 
     uint64_t signalValues[] = {
@@ -641,5 +694,10 @@ void Renderer::cleanup()
     }
 
     vkDestroyPipeline(context->device, graphicsPipeline, nullptr);
-        vkDestroyPipelineLayout(context->device, pipelineLayout, nullptr);
+    vkDestroyPipelineLayout(context->device, pipelineLayout, nullptr);
+
+    ImGui_ImplVulkan_Shutdown();
+    ImGui_ImplGlfw_Shutdown();
+    ImGui::DestroyContext();
+    vkDestroyDescriptorPool(context->device, imguiDescriptorPool, nullptr);
 }

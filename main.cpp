@@ -11,6 +11,7 @@
 #include "VulkanModel.h"
 #include "Renderer.h"
 #include "Camera.h"
+#include "imgui.h"
 
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
@@ -69,7 +70,7 @@ private:
         swapchain.init(context, resourceManager, window);
         texture.init(context, resourceManager, commandManager, TEXTURE_PATH);
         model.init(context, resourceManager, MODEL_PATH);
-        renderer.init(context, resourceManager, commandManager, swapchain, texture, model, camera, modelMatrices);
+        renderer.init(context, resourceManager, commandManager, swapchain, texture, model, camera, modelMatrices, window);
     }
 
     void mainLoop()
@@ -105,6 +106,12 @@ private:
     {
         auto app = reinterpret_cast<Eventide *>(glfwGetWindowUserPointer(window));
 
+
+        if(ImGui::GetIO().WantCaptureMouse){
+            app->firstMouse = true;
+            return;
+        }
+        
         if(glfwGetMouseButton(window, GLFW_MOUSE_BUTTON_LEFT) != GLFW_PRESS) {
             app->firstMouse = true;
             return;
