@@ -23,6 +23,7 @@ main.cpp (application entry, draw loop, scene-specific logic)
 └── VulkanTexture       — Texture creation, management, mipmaps
 └── VulkanModel         — OBJ model loading, vertex buffer, index buffer
 └── Renderer            — Graphics pipeline, descriptors, sync, draw loop
+└── Camera              — FPS fly camera, view/projection matrices
 ```
 
 Shared headers: `VulkanTypes.h` (queue/swapchain structs, validation config), `Vertex.h` (vertex layout, UBO)
