@@ -25,7 +25,7 @@ void VulkanModel::load(const std::string &modelPath)
     }
     if (!err.empty())
     {
-        std::cout << "glTF warning: " << err << std::endl;
+        std::cout << "glTF error: " << err << std::endl;
     }
     if (!ret)
     {

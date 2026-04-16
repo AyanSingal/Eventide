@@ -24,9 +24,6 @@ public:
 private:
     VulkanContext *context = nullptr;
     ResourceManager *resourceManager = nullptr;
-    std::vector<Vertex> vertices;
-    std::vector<uint32_t> indices;    
-    std::string modelPath;
 
     void load(const std::string &modelPath);
 };
