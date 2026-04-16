@@ -7,7 +7,6 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # ──────────────────────────────────────────────
 # Put the exe directly in build/ instead of build/Debug/.
 # This way relative paths like "shaders/vert.spv" and
-# "models/viking_room.obj" work without fuss.
 # ──────────────────────────────────────────────
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR})
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY_DEBUG ${CMAKE_BINARY_DIR})
@@ -26,7 +25,7 @@ find_package(Vulkan REQUIRED)
 #        glfw-3.4.bin.WIN64/    (include/ and lib-vc2022/)
 #        glm/
 #        stb-master/
-#        tinyobjloader/
+#        tinygltf/
 # ──────────────────────────────────────────────
 set(LIB_DIR "${CMAKE_SOURCE_DIR}/external")
 set(IMGUI_DIR "${LIB_DIR}/imgui")
@@ -35,7 +34,6 @@ set(GLFW_INCLUDE_DIR "${LIB_DIR}/glfw-3.4.bin.WIN64/include")
 set(GLFW_LIB         "${LIB_DIR}/glfw-3.4.bin.WIN64/lib-vc2022/glfw3.lib")
 set(GLM_INCLUDE_DIR  "${LIB_DIR}/glm")
 set(STB_INCLUDE_DIR  "${LIB_DIR}/stb-master")
-set(TINYOBJ_INCLUDE_DIR "${LIB_DIR}/tinyobjloader")
 set(TINYGLTF_INCLUDE_DIR "${LIB_DIR}/tinygltf")
 
 # ──────────────────────────────────────────────
@@ -65,7 +63,6 @@ target_include_directories(${PROJECT_NAME} PRIVATE
     ${GLFW_INCLUDE_DIR}
     ${GLM_INCLUDE_DIR}
     ${STB_INCLUDE_DIR}
-    ${TINYOBJ_INCLUDE_DIR}
     ${IMGUI_DIR}
     ${TINYGLTF_INCLUDE_DIR}
 )
@@ -124,7 +121,7 @@ add_dependencies(${PROJECT_NAME} compile_shaders)
 
 # ──────────────────────────────────────────────
 # 5. Copy runtime assets (models, textures) to build directory
-#    Your code loads these via relative paths like "models/viking_room.obj",
+#    Your code loads these via relative paths like "models/flightHelmet",
 #    so they need to be next to the executable.
 # ──────────────────────────────────────────────
 add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD

@@ -29,6 +29,4 @@ private:
     std::string modelPath;
 
     void load(const std::string &modelPath);
-    void createVertexBuffer();
-    void createIndexBuffer();
 };
