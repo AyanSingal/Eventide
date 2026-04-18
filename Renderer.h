@@ -45,10 +45,13 @@ private:
     Camera* camera = nullptr;
     GLFWwindow* window = nullptr;
     std::vector<glm::mat4> modelMatrices;
+    
 
     VkDescriptorPool descriptorPool;
-    VkDescriptorSetLayout descriptorSetLayout;
-    std::vector<VkDescriptorSet> descriptorSets;
+    VkDescriptorSetLayout uboSetLayout;
+    VkDescriptorSetLayout materialSetLayout;
+    std::vector<VkDescriptorSet> uboDescriptorSets;
+    VkDescriptorSet materialDescriptorSet;
     VkPipelineLayout pipelineLayout;
     VkPipeline graphicsPipeline;
     std::vector<VkSemaphore> imageAvailableSemaphores;
