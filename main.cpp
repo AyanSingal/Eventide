@@ -16,7 +16,7 @@
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
 
-const std::string MODEL_PATH = "models/FlightHelmet/FlightHelmet.gltf";
+const std::string MODEL_PATH = "models/SciFiHelmet/SciFiHelmet.gltf";
 
 class Eventide
 {
