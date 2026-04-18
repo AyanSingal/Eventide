@@ -4,10 +4,11 @@
 
 #include "VulkanModel.h"
 
-void VulkanModel::init(VulkanContext &context, ResourceManager &resourceManager, const std::string &modelPath)
+void VulkanModel::init(VulkanContext &context, ResourceManager &resourceManager, CommandManager &commandManager, const std::string &modelPath)
 {
     this->context = &context;
     this->resourceManager = &resourceManager;
+    this->commandManager = &commandManager;
     load(modelPath);
 }
 
@@ -150,6 +151,25 @@ void VulkanModel::load(const std::string &modelPath)
     }
 
     std::cout << "Loaded " << subMeshes.size() << " sub-meshes" << std::endl;
+ 
+    std::string modelDir = modelPath.substr(0, modelPath.find_last_of("/\\") + 1 );
+    textures.reserve(gltfModel.materials.size());
+
+    for(size_t i = 0; i < gltfModel.materials.size(); i++){
+        const auto& material = gltfModel.materials[i];
+        int texIndex = material.pbrMetallicRoughness.baseColorTexture.index;
+
+        if(texIndex >= 0){
+            int imageIndex = gltfModel.textures[texIndex].source;
+            std::string texturePath = modelDir + gltfModel.images[imageIndex].uri;
+
+            VulkanTexture tex;
+            tex.init(*context, *resourceManager, *commandManager, texturePath);
+            textures.push_back(std::move(tex));
+        }
+    }
+
+    std::cout << "Loaded " << textures.size() << " textures" << std::endl;
 }
 
 void VulkanModel::cleanup()
@@ -160,5 +180,10 @@ void VulkanModel::cleanup()
 
         vkDestroyBuffer(context->device, mesh.vertexBuffer, nullptr);
         vkFreeMemory(context->device, mesh.vertexBufferMemory, nullptr);
+    }
+
+    for (auto &tex : textures)  
+    {
+        tex.cleanup();
     }
 }

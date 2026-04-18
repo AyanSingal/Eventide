@@ -9,7 +9,11 @@ A Vulkan 1.2 renderer built from scratch in C++. Currently renders a textured, r
 - **Dedicated transfer queue** for async GPU uploads
 - **MSAA** with automatic resolve
 - **Mipmapped textures** generated via blit chain
-- **OBJ model loading** with vertex deduplication
+- **glTF 2.0 model loading** with per-material base color textures
+- **Per-material descriptor sets** (set 0 = per-frame UBO, set 1 = per-material texture)
+- **Push constants** for per-object model matrices
+- **FPS fly camera** with click-drag rotation and WASD movement
+- **ImGui debug UI** with camera position and frame timing
 - **Modular architecture** — clean separation of concerns across well-defined modules
 
 ## Architecture
@@ -39,7 +43,7 @@ Shared headers: `VulkanTypes.h` (queue/swapchain structs, validation config), `V
   - [GLFW 3.4](https://www.glfw.org/) (prebuilt WIN64 binaries)
   - [GLM](https://github.com/g-truc/glm)
   - [stb](https://github.com/nothings/stb)
-  - [tinyobjloader](https://github.com/tinyobjloader/tinyobjloader)
+  - [tinygltf](https://github.com/syoyo/tinygltf)
 
 ### Build
 

@@ -25,7 +25,6 @@ public:
         ResourceManager &resourceManager, 
         CommandManager &commandManager, 
         VulkanSwapchain &swapchain, 
-        VulkanTexture &texture, 
         VulkanModel &model, 
         Camera &camera,
         const std::vector<glm::mat4>& modelMatrices,
@@ -40,7 +39,6 @@ private:
     ResourceManager *resourceManager = nullptr;
     CommandManager *commandManager = nullptr;
     VulkanSwapchain *swapchain = nullptr;
-    VulkanTexture* texture = nullptr;
     VulkanModel* model = nullptr;
     Camera* camera = nullptr;
     GLFWwindow* window = nullptr;
@@ -51,7 +49,7 @@ private:
     VkDescriptorSetLayout uboSetLayout;
     VkDescriptorSetLayout materialSetLayout;
     std::vector<VkDescriptorSet> uboDescriptorSets;
-    VkDescriptorSet materialDescriptorSet;
+    std::vector<VkDescriptorSet> materialDescriptorSets;
     VkPipelineLayout pipelineLayout;
     VkPipeline graphicsPipeline;
     std::vector<VkSemaphore> imageAvailableSemaphores;

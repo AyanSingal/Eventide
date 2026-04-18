@@ -17,7 +17,6 @@ const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
 
 const std::string MODEL_PATH = "models/FlightHelmet/FlightHelmet.gltf";
-const std::string TEXTURE_PATH = "textures/viking_room.png";
 
 class Eventide
 {
@@ -37,7 +36,6 @@ private:
     CommandManager commandManager;
     ResourceManager resourceManager;
     VulkanSwapchain swapchain;
-    VulkanTexture texture;
     VulkanModel model;
     Renderer renderer;
     Camera camera;
@@ -68,9 +66,8 @@ private:
         commandManager.init(context);
         resourceManager.init(context, commandManager);
         swapchain.init(context, resourceManager, window);
-        texture.init(context, resourceManager, commandManager, TEXTURE_PATH);
-        model.init(context, resourceManager, MODEL_PATH);
-        renderer.init(context, resourceManager, commandManager, swapchain, texture, model, camera, modelMatrices, window);
+        model.init(context, resourceManager, commandManager, MODEL_PATH);
+        renderer.init(context, resourceManager, commandManager, swapchain, model, camera, modelMatrices, window);
     }
 
     void mainLoop()
@@ -93,7 +90,6 @@ private:
     void cleanup()
     {
         swapchain.cleanupSwapChain();
-        texture.cleanup();
         model.cleanup();
         renderer.cleanup();
         commandManager.cleanup();

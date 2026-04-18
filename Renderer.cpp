@@ -1,12 +1,11 @@
 #include "Renderer.h"
 
-void Renderer::init(VulkanContext &context, ResourceManager &resourceManager, CommandManager &commandManager, VulkanSwapchain &swapchain, VulkanTexture &texture, VulkanModel &model, Camera &camera, const std::vector<glm::mat4>& modelMatrices, GLFWwindow* window)
+void Renderer::init(VulkanContext &context, ResourceManager &resourceManager, CommandManager &commandManager, VulkanSwapchain &swapchain, VulkanModel &model, Camera &camera, const std::vector<glm::mat4>& modelMatrices, GLFWwindow* window)
 {
     this->context = &context;
     this->resourceManager = &resourceManager;
     this->commandManager = &commandManager;
     this->swapchain = &swapchain;
-    this->texture = &texture;
     this->model = &model;
     this->camera = &camera;
     this->modelMatrices = modelMatrices;
@@ -113,33 +112,37 @@ void Renderer::createDescriptorSets()
 
 
     //MATERIAL DESCRIPTOR SET CREATION
-    std::vector<VkDescriptorSetLayout> matLayouts(1, materialSetLayout);
+    std::vector<VkDescriptorSetLayout> matLayouts(this->model->textures.size(), materialSetLayout);
     VkDescriptorSetAllocateInfo matAllocInfo{};
     matAllocInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
     matAllocInfo.descriptorPool = descriptorPool;
-    matAllocInfo.descriptorSetCount = 1;
+    matAllocInfo.descriptorSetCount = this->model->textures.size();
     matAllocInfo.pSetLayouts = matLayouts.data();
 
-    if (vkAllocateDescriptorSets(context->device, &matAllocInfo, &materialDescriptorSet) != VK_SUCCESS)
+    materialDescriptorSets.resize(this->model->textures.size());
+    if (vkAllocateDescriptorSets(context->device, &matAllocInfo, materialDescriptorSets.data()) != VK_SUCCESS)
     {
         throw std::runtime_error("failed to allocate descriptor sets!");
     }
 
-    VkDescriptorImageInfo imageInfo{};
-    imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-    imageInfo.imageView = texture->textureImageView;
-    imageInfo.sampler = texture->textureSampler;
+    for (size_t i = 0; i < this->model->textures.size(); i++)
+    {
+        VkDescriptorImageInfo imageInfo{};
+        imageInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+        imageInfo.imageView = this->model->textures[i].textureImageView;
+        imageInfo.sampler = this->model->textures[i].textureSampler;
 
-    VkWriteDescriptorSet descriptorWrite{};
-    descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-    descriptorWrite.dstSet = materialDescriptorSet;
-    descriptorWrite.dstBinding = 0;
-    descriptorWrite.dstArrayElement = 0;
-    descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    descriptorWrite.descriptorCount = 1;
-    descriptorWrite.pImageInfo = &imageInfo;
+        VkWriteDescriptorSet descriptorWrite{};
+        descriptorWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        descriptorWrite.dstSet = materialDescriptorSets[i];
+        descriptorWrite.dstBinding = 0;
+        descriptorWrite.dstArrayElement = 0;
+        descriptorWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        descriptorWrite.descriptorCount = 1;
+        descriptorWrite.pImageInfo = &imageInfo;
 
-    vkUpdateDescriptorSets(context->device, 1, &descriptorWrite, 0, nullptr);
+        vkUpdateDescriptorSets(context->device, 1, &descriptorWrite, 0, nullptr);
+    }
 }
 
 void Renderer::createDescriptorPool()
@@ -148,13 +151,13 @@ void Renderer::createDescriptorPool()
     poolSizes[0].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     poolSizes[0].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
     poolSizes[1].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-    poolSizes[1].descriptorCount = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT);
+    poolSizes[1].descriptorCount = static_cast<uint32_t>(this->model->textures.size());
 
     VkDescriptorPoolCreateInfo poolInfo{};
     poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
     poolInfo.pPoolSizes = poolSizes.data();
-    poolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) + 1;
+    poolInfo.maxSets = static_cast<uint32_t>(MAX_FRAMES_IN_FLIGHT) + this->model->textures.size();
 
     if (vkCreateDescriptorPool(context->device, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS)
     {
@@ -517,10 +520,11 @@ void Renderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
     vkCmdSetScissor(commandBuffer, 0, 1, &scissor);
 
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 0, 1, &uboDescriptorSets[currentFrame], 0, nullptr);
-    vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, 1, &materialDescriptorSet, 0, nullptr);
+    
 
     for (const auto &mesh : model->subMeshes)
     {
+        vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipelineLayout, 1, 1, &materialDescriptorSets[mesh.materialIndex], 0, nullptr);
         VkBuffer vertexBuffers[] = {mesh.vertexBuffer};
         VkDeviceSize offsets[] = {0};
         vkCmdBindVertexBuffers(commandBuffer, 0, 1, vertexBuffers, offsets);
