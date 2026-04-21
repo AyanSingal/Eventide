@@ -49,6 +49,7 @@ add_executable(${PROJECT_NAME}
     VulkanModel.cpp 
     Renderer.cpp 
     Camera.cpp
+    RayTracingAS.cpp
     ${IMGUI_DIR}/imgui.cpp
     ${IMGUI_DIR}/imgui_draw.cpp
     ${IMGUI_DIR}/imgui_tables.cpp

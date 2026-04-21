@@ -124,7 +124,7 @@ void VulkanModel::load(const std::string &modelPath)
             memcpy(data, vertices.data(), vertexSize);
             vkUnmapMemory(context->device, vertexStagingMem);
             resourceManager->createBuffer(vertexSize,
-                                          VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                                          VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                                           subMesh.vertexBuffer, subMesh.vertexBufferMemory);
             resourceManager->copyBuffer(vertexStaging, subMesh.vertexBuffer, vertexSize);
             vkDestroyBuffer(context->device, vertexStaging, nullptr);
@@ -141,7 +141,7 @@ void VulkanModel::load(const std::string &modelPath)
             memcpy(data, indices.data(), indexSize);
             vkUnmapMemory(context->device, indexStagingMem);
             resourceManager->createBuffer(indexSize,
-                                          VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                                          VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT | VK_BUFFER_USAGE_SHADER_DEVICE_ADDRESS_BIT | VK_BUFFER_USAGE_ACCELERATION_STRUCTURE_BUILD_INPUT_READ_ONLY_BIT_KHR, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                                           subMesh.indexBuffer, subMesh.indexBufferMemory);
             resourceManager->copyBuffer(indexStaging, subMesh.indexBuffer, indexSize);
             vkDestroyBuffer(context->device, indexStaging, nullptr);

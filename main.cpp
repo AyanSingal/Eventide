@@ -11,12 +11,13 @@
 #include "VulkanModel.h"
 #include "Renderer.h"
 #include "Camera.h"
+#include "RayTracingAS.h"
 #include "imgui.h"
 
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
 
-const std::string MODEL_PATH = "models/SciFiHelmet/SciFiHelmet.gltf";
+const std::string MODEL_PATH = "models/FlightHelmet/FlightHelmet.gltf";
 
 class Eventide
 {
@@ -39,6 +40,7 @@ private:
     VulkanModel model;
     Renderer renderer;
     Camera camera;
+    RayTracingAS rayTracingAS;
 
     float lastMouseX = 400.0f; // center of window
     float lastMouseY = 300.0f;
@@ -68,6 +70,7 @@ private:
         swapchain.init(context, resourceManager, window);
         model.init(context, resourceManager, commandManager, MODEL_PATH);
         renderer.init(context, resourceManager, commandManager, swapchain, model, camera, modelMatrices, window);
+        rayTracingAS.init(context, resourceManager, commandManager, model, modelMatrices);
     }
 
     void mainLoop()
@@ -89,6 +92,7 @@ private:
 
     void cleanup()
     {
+        rayTracingAS.cleanup();
         swapchain.cleanupSwapChain();
         model.cleanup();
         renderer.cleanup();
