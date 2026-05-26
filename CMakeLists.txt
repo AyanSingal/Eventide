@@ -50,6 +50,7 @@ add_executable(${PROJECT_NAME}
     Renderer.cpp 
     Camera.cpp
     RayTracingAS.cpp
+    RayTracingPipeline.cpp
     ${IMGUI_DIR}/imgui.cpp
     ${IMGUI_DIR}/imgui_draw.cpp
     ${IMGUI_DIR}/imgui_tables.cpp
@@ -96,6 +97,9 @@ file(MAKE_DIRECTORY ${SHADER_OUTPUT_DIR})
 set(SHADER_SOURCES
     ${SHADER_SOURCE_DIR}/shader.vert
     ${SHADER_SOURCE_DIR}/shader.frag
+    ${SHADER_SOURCE_DIR}/raygen.rgen
+    ${SHADER_SOURCE_DIR}/miss.rmiss
+    ${SHADER_SOURCE_DIR}/closesthit.rchit
 )
 
 foreach(SHADER_SOURCE ${SHADER_SOURCES})
@@ -106,7 +110,7 @@ foreach(SHADER_SOURCE ${SHADER_SOURCES})
 
     add_custom_command(
         OUTPUT ${SHADER_OUTPUT}
-        COMMAND ${GLSLANG_VALIDATOR} -V ${SHADER_SOURCE} -o ${SHADER_OUTPUT}
+        COMMAND ${GLSLANG_VALIDATOR} -V --target-env vulkan1.2 ${SHADER_SOURCE} -o ${SHADER_OUTPUT}
         DEPENDS ${SHADER_SOURCE}
         COMMENT "Compiling ${SHADER_STAGE} shader"
         VERBATIM

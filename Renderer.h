@@ -10,6 +10,7 @@
 #include "Vertex.h"
 #include "VulkanModel.h"
 #include "Camera.h"
+#include "ShaderUtils.h"
 
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
@@ -71,8 +72,6 @@ private:
     void createSyncObjects();
     void setupImgui();
     void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
-    VkShaderModule createShaderModule(const std::vector<char>& code);
     void updateUniformBuffer(uint32_t currentImage);
-    static std::vector<char> readFile(const std::string& filename);
 
 };
