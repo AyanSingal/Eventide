@@ -1,6 +1,6 @@
 #include "Renderer.h"
 
-void Renderer::init(VulkanContext &context, ResourceManager &resourceManager, CommandManager &commandManager, VulkanSwapchain &swapchain, VulkanModel &model, Camera &camera, const std::vector<glm::mat4>& modelMatrices, GLFWwindow* window)
+void Renderer::init(VulkanContext &context, ResourceManager &resourceManager, CommandManager &commandManager, VulkanSwapchain &swapchain, VulkanModel &model, Camera &camera, RayTracingPipeline &rtPipeline, const std::vector<glm::mat4>& modelMatrices, GLFWwindow* window)
 {
     this->context = &context;
     this->resourceManager = &resourceManager;
@@ -10,6 +10,7 @@ void Renderer::init(VulkanContext &context, ResourceManager &resourceManager, Co
     this->camera = &camera;
     this->modelMatrices = modelMatrices;
     this->window = window;
+    this->rtPipeline = &rtPipeline;
     createDescriptorSetLayout();
     createGraphicsPipeline();
     createUniformBuffers();
@@ -401,15 +402,15 @@ void Renderer::createSyncObjects()
 
 void Renderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex)
 {
-    VkCommandBufferBeginInfo beginInfo{};
-    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-    beginInfo.flags = 0;
-    beginInfo.pInheritanceInfo = nullptr;
+    // VkCommandBufferBeginInfo beginInfo{};
+    // beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    // beginInfo.flags = 0;
+    // beginInfo.pInheritanceInfo = nullptr;
 
-    if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS)
-    {
-        throw std::runtime_error("failed to begin recording command buffer!");
-    }
+    // if (vkBeginCommandBuffer(commandBuffer, &beginInfo) != VK_SUCCESS)
+    // {
+    //     throw std::runtime_error("failed to begin recording command buffer!");
+    // }
 
     // SRC stage must complete a srcAccessMask type access before the DST stage can proceed with a dstAccessMask type access
     VkImageMemoryBarrier colorBarrier{};
@@ -548,10 +549,10 @@ void Renderer::recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t image
                          VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
                          0, 0, nullptr, 0, nullptr, 1, &swapchainResolveBarrier);
 
-    if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS)
-    {
-        throw std::runtime_error("failed to record command buffer!");
-    }
+    // if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS)
+    // {
+    //     throw std::runtime_error("failed to record command buffer!");
+    // }
 }
 
 void Renderer::drawFrame()
@@ -598,7 +599,21 @@ void Renderer::drawFrame()
     ImGui::End();
     ImGui::Render();
 
-    recordCommandBuffer(commandManager->graphicsCommandBuffers[currentFrame], imageIndex);
+    VkCommandBufferBeginInfo beginInfo{};
+    beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+    vkBeginCommandBuffer(commandManager->graphicsCommandBuffers[currentFrame], &beginInfo);
+
+    if (rtPipeline)
+    {
+        rtPipeline->updateUBO();
+        rtPipeline->recordCommandBuffer(commandManager->graphicsCommandBuffers[currentFrame], imageIndex);
+    }
+    else
+    {
+        recordCommandBuffer(commandManager->graphicsCommandBuffers[currentFrame], imageIndex);
+    }
+
+    vkEndCommandBuffer(commandManager->graphicsCommandBuffers[currentFrame]);
 
     uint64_t signalValues[] = {
         0,          // Binary semaphore (ignored, but must be present)

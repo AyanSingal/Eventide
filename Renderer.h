@@ -11,6 +11,7 @@
 #include "VulkanModel.h"
 #include "Camera.h"
 #include "ShaderUtils.h"
+#include "RayTracingPipeline.h"
 
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
@@ -28,6 +29,7 @@ public:
         VulkanSwapchain &swapchain, 
         VulkanModel &model, 
         Camera &camera,
+        RayTracingPipeline &rtPipeline,
         const std::vector<glm::mat4>& modelMatrices,
         GLFWwindow* window);
         
@@ -43,6 +45,7 @@ private:
     VulkanModel* model = nullptr;
     Camera* camera = nullptr;
     GLFWwindow* window = nullptr;
+    RayTracingPipeline* rtPipeline = nullptr;
     std::vector<glm::mat4> modelMatrices;
     
 
@@ -63,6 +66,7 @@ private:
     std::vector<void*> uniformBuffersMapped;
 
     VkDescriptorPool imguiDescriptorPool;
+    
 
     void createDescriptorSetLayout();
     void createGraphicsPipeline();

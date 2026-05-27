@@ -14,13 +14,13 @@ void RayTracingPipeline::createStorageImage()
 
     storageImageView = resourceManager->createImageView(
         storageImage,
-        VK_FORMAT_R8G8B8_UNORM,
+        VK_FORMAT_R8G8B8A8_UNORM,
         VK_IMAGE_ASPECT_COLOR_BIT,
         1
     );
 
     resourceManager->transitionImageLayout(
-        storageImage, VK_FORMAT_R8G8B8_UNORM,
+        storageImage, VK_FORMAT_R8G8B8A8_UNORM,
         VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, 1);
 }
 
@@ -41,7 +41,8 @@ void RayTracingPipeline::updateUBO()
 
     RTUniformBufferObject ubo{};
     ubo.viewInverse = glm::inverse(camera->getViewMatrix());
-    ubo.projInverse = glm::inverse(camera->getProjectionMatrix(aspectRatio));
+    glm::mat4 proj = glm::perspective(glm::radians(45.0f), aspectRatio, 0.1f, 10000.0f);
+    ubo.projInverse = glm::inverse(proj);
 
     memcpy(uboMapped, &ubo, sizeof(ubo));
 }
@@ -289,7 +290,7 @@ void RayTracingPipeline::createShaderBindingTable()
 
     raygenRegion.deviceAddress = sbtAddress;
     raygenRegion.stride = handleSizeAligned;
-    raygenRegion.size = raygenRegionSize;
+    raygenRegion.size = handleSizeAligned;
 
     missRegion.deviceAddress = sbtAddress + raygenRegionSize;
     missRegion.stride = handleSizeAligned;

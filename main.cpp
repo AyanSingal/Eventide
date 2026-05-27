@@ -12,6 +12,7 @@
 #include "Renderer.h"
 #include "Camera.h"
 #include "RayTracingAS.h"
+#include "RayTracingPipeline.h"
 #include "imgui.h"
 
 const uint32_t WIDTH = 800;
@@ -41,6 +42,7 @@ private:
     Renderer renderer;
     Camera camera;
     RayTracingAS rayTracingAS;
+    RayTracingPipeline rtPipeline;
 
     float lastMouseX = 400.0f; // center of window
     float lastMouseY = 300.0f;
@@ -69,8 +71,9 @@ private:
         resourceManager.init(context, commandManager);
         swapchain.init(context, resourceManager, window);
         model.init(context, resourceManager, commandManager, MODEL_PATH);
-        renderer.init(context, resourceManager, commandManager, swapchain, model, camera, modelMatrices, window);
         rayTracingAS.init(context, resourceManager, commandManager, model, modelMatrices);
+        rtPipeline.init(context, resourceManager, commandManager, rayTracingAS, swapchain, camera);
+        renderer.init(context, resourceManager, commandManager, swapchain, model, camera, rtPipeline, modelMatrices, window);
     }
 
     void mainLoop()
@@ -92,6 +95,7 @@ private:
 
     void cleanup()
     {
+        rtPipeline.cleanup();
         rayTracingAS.cleanup();
         swapchain.cleanupSwapChain();
         model.cleanup();
