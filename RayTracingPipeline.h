@@ -42,10 +42,23 @@ private:
     VkDeviceMemory uboMemory;
     void* uboMapped;
 
+    VkStridedDeviceAddressRegionKHR raygenRegion{};
+    VkStridedDeviceAddressRegionKHR missRegion{};
+    VkStridedDeviceAddressRegionKHR hitRegion{};
+    VkStridedDeviceAddressRegionKHR callableRegion{};
+
     void createStorageImage();
     void createDescriptorSets();
     void createPipeline();
     void createShaderBindingTable();
     void createUBO();
     void updateUBO();
+    void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
+    void cleanup();
+
+public:
+    void init(VulkanContext& context, ResourceManager& resourceManager,
+                                CommandManager& commandManager, RayTracingAS& rtAS,
+                                VulkanSwapchain& swapchain, Camera& camera);
+
 };
