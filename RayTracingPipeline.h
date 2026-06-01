@@ -23,6 +23,7 @@ private:
     RayTracingAS *rtAS = nullptr;
     VulkanSwapchain* swapchain = nullptr;
     Camera *camera = nullptr;
+    VulkanModel *model = nullptr;
 
     VkPipeline pipeline;
     VkPipelineLayout pipelineLayout;
@@ -57,7 +58,7 @@ private:
 public:
     void init(VulkanContext& context, ResourceManager& resourceManager,
                                 CommandManager& commandManager, RayTracingAS& rtAS,
-                                VulkanSwapchain& swapchain, Camera& camera);
+                                VulkanSwapchain& swapchain, VulkanModel& model, Camera& camera);
     void updateUBO();
     void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
     void cleanup();

@@ -72,7 +72,7 @@ private:
         swapchain.init(context, resourceManager, window);
         model.init(context, resourceManager, commandManager, MODEL_PATH);
         rayTracingAS.init(context, resourceManager, commandManager, model, modelMatrices);
-        rtPipeline.init(context, resourceManager, commandManager, rayTracingAS, swapchain, camera);
+        rtPipeline.init(context, resourceManager, commandManager, rayTracingAS, swapchain, model, camera);
         renderer.init(context, resourceManager, commandManager, swapchain, model, camera, rtPipeline, modelMatrices, window);
     }
 

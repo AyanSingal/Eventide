@@ -49,6 +49,9 @@ void RayTracingPipeline::updateUBO()
 
 void RayTracingPipeline::createDescriptorSets()
 {
+    uint32_t meshCount = static_cast<uint32_t>(model->subMeshes.size());
+    uint32_t texCount = static_cast<uint32_t>(model->textures.size());
+
     //LAYOUT
     VkDescriptorSetLayoutBinding tlasBinding{};
     tlasBinding.binding = 0;
@@ -68,7 +71,25 @@ void RayTracingPipeline::createDescriptorSets()
     uboBinding.descriptorCount = 1;
     uboBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
 
-    std::array<VkDescriptorSetLayoutBinding, 3> bindings = { tlasBinding, imageBinding, uboBinding };
+    VkDescriptorSetLayoutBinding vertexBinding{};
+    vertexBinding.binding = 3;
+    vertexBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    vertexBinding.descriptorCount = meshCount;
+    vertexBinding.stageFlags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
+
+    VkDescriptorSetLayoutBinding indexBinding{};
+    indexBinding.binding = 4;
+    indexBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    indexBinding.descriptorCount = meshCount;
+    indexBinding.stageFlags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
+
+    VkDescriptorSetLayoutBinding textureBinding{};
+    textureBinding.binding = 5;
+    textureBinding.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    textureBinding.descriptorCount = texCount;
+    textureBinding.stageFlags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
+
+    std::array<VkDescriptorSetLayoutBinding, 6> bindings = { tlasBinding, imageBinding, uboBinding, vertexBinding, indexBinding, textureBinding };
 
     VkDescriptorSetLayoutCreateInfo layoutInfo{};
     layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -82,13 +103,12 @@ void RayTracingPipeline::createDescriptorSets()
 
 
     //POOL
-    std::array<VkDescriptorPoolSize, 3> poolSizes{};
-    poolSizes[0].type = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
-    poolSizes[0].descriptorCount = 1;
-    poolSizes[1].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
-    poolSizes[1].descriptorCount = 1;
-    poolSizes[2].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    poolSizes[2].descriptorCount = 1;
+    std::array<VkDescriptorPoolSize, 5> poolSizes{};
+    poolSizes[0] = {VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1};
+    poolSizes[1] = {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1};
+    poolSizes[2] = {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1};
+    poolSizes[3] = {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, meshCount * 2};
+    poolSizes[4] = {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, texCount};
 
     VkDescriptorPoolCreateInfo poolInfo{};
     poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -98,7 +118,7 @@ void RayTracingPipeline::createDescriptorSets()
 
     if(vkCreateDescriptorPool(context->device, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS)
     {
-        throw std::runtime_error("failed to create descriptor pool!");
+        throw std::runtime_error("failed to create RT descriptor pool!");
     }
 
     VkDescriptorSetAllocateInfo allocInfo{};
@@ -151,7 +171,52 @@ void RayTracingPipeline::createDescriptorSets()
     uboWrite.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     uboWrite.pBufferInfo = &uboInfo;
 
-    std::array<VkWriteDescriptorSet, 3> writes = {tlasWrite, imageWrite, uboWrite};
+    std::vector<VkDescriptorBufferInfo> vertexInfos(meshCount);
+    for(uint32_t i = 0; i < meshCount; i++){
+        vertexInfos[i].buffer = model->subMeshes[i].vertexBuffer;
+        vertexInfos[i].offset = 0;
+        vertexInfos[i].range = VK_WHOLE_SIZE;
+    }
+
+    VkWriteDescriptorSet vertexWrite{};
+    vertexWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    vertexWrite.dstSet = descriptorSet;
+    vertexWrite.dstBinding = 3;
+    vertexWrite.descriptorCount = meshCount;
+    vertexWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    vertexWrite.pBufferInfo = vertexInfos.data();
+
+    std::vector<VkDescriptorBufferInfo> indexInfos(meshCount);
+    for(uint32_t i = 0; i < meshCount; i++){
+        indexInfos[i].buffer = model->subMeshes[i].indexBuffer;
+        indexInfos[i].offset = 0;
+        indexInfos[i].range = VK_WHOLE_SIZE;
+    }
+
+    VkWriteDescriptorSet indexWrite{};
+    indexWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    indexWrite.dstSet = descriptorSet;
+    indexWrite.dstBinding = 4;
+    indexWrite.descriptorCount = meshCount;
+    indexWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    indexWrite.pBufferInfo = indexInfos.data();
+
+    std::vector<VkDescriptorImageInfo> textureInfos(texCount);
+    for(uint32_t i = 0; i < texCount; i++){
+        textureInfos[i].imageView = model->textures[i].textureImageView;
+        textureInfos[i].sampler = model->textures[i].textureSampler;
+        textureInfos[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    }
+
+    VkWriteDescriptorSet textureWrite{};
+    textureWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    textureWrite.dstSet = descriptorSet;
+    textureWrite.dstBinding = 5;
+    textureWrite.descriptorCount = texCount;
+    textureWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    textureWrite.pImageInfo = textureInfos.data();
+
+    std::array<VkWriteDescriptorSet, 6> writes = {tlasWrite, imageWrite, uboWrite, vertexWrite, indexWrite, textureWrite};
     vkUpdateDescriptorSets(context->device, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
 }
 
@@ -384,7 +449,7 @@ void RayTracingPipeline::recordCommandBuffer(VkCommandBuffer commandBuffer, uint
 
 void RayTracingPipeline::init(VulkanContext& context, ResourceManager& resourceManager,
                                 CommandManager& commandManager, RayTracingAS& rtAS,
-                                VulkanSwapchain& swapchain, Camera& camera)
+                                VulkanSwapchain& swapchain, VulkanModel& model, Camera& camera)
 {
     this->context = &context;
     this->resourceManager = &resourceManager;
@@ -392,6 +457,7 @@ void RayTracingPipeline::init(VulkanContext& context, ResourceManager& resourceM
     this->rtAS = &rtAS;
     this->swapchain = &swapchain;
     this->camera = &camera;
+    this->model = &model;
 
     createStorageImage();
     createUBO();
