@@ -1,6 +1,6 @@
 # Eventide
 
-A Vulkan 1.2 renderer built from scratch in C++. Currently renders a textured, rotating 3D model with MSAA, dynamic rendering, and timeline semaphore synchronization.
+A Vulkan 1.2 renderer built from scratch in C++.
 
 ## Features
 
@@ -15,19 +15,20 @@ A Vulkan 1.2 renderer built from scratch in C++. Currently renders a textured, r
 - **FPS fly camera** with click-drag rotation and WASD movement
 - **ImGui debug UI** with camera position and frame timing
 - **Modular architecture** — clean separation of concerns across well-defined modules
+- **Basic Ray Tracing**
 
 ## Architecture
 
 ```
 main.cpp (application entry, draw loop, scene-specific logic)
-├── VulkanContext       — Instance, device, queues, debug messenger
-├── CommandManager      — Command pools, command buffers, one-shot submissions
-├── ResourceManager     — Buffer/image creation, memory allocation, data transfer
-└── VulkanSwapchain     — Swapchain lifecycle, image views, MSAA/depth resources
-└── VulkanTexture       — Texture creation, management, mipmaps
-└── VulkanModel         — glTF model loading, vertex buffer, index buffer
-└── Renderer            — Graphics pipeline, descriptors, sync, draw loop
-└── Camera              — FPS fly camera, view/projection matrices
+├── VulkanContext       - Instance, device, queues, debug messenger
+├── CommandManager      - Command pools, command buffers, one-shot submissions
+├── ResourceManager     - Buffer/image creation, memory allocation, data transfer
+└── VulkanSwapchain     - Swapchain lifecycle, image views, MSAA/depth resources
+└── VulkanTexture       - Texture creation, management, mipmaps
+└── VulkanModel         - glTF model loading, vertex buffer, index buffer
+└── Renderer            - Graphics pipeline, descriptors, sync, draw loop
+└── Camera              - FPS fly camera, view/projection matrices
 ```
 
 Shared headers: `VulkanTypes.h` (queue/swapchain structs, validation config), `Vertex.h` (vertex layout, UBO)
@@ -56,13 +57,13 @@ The executable, compiled shaders, models, and textures are output to `build/`.
 
 ## Roadmap
 
-**Phase 1 — Foundation refactor** (complete)
+**Phase 1 —> Foundation refactor** (complete)
 Breaking the monolith into clean modules with clear separation of concerns.
 
-**Phase 2 — Renderer features** (current)
+**Phase 2 —> Renderer features** (complete)
 Scene abstraction, glTF loading, material system, ImGui debug UI, push constants, multiple descriptor sets.
 
-**Phase 3 — Path tracing**
+**Phase 3 -> Path tracing** (in progress)
 Vulkan ray tracing extensions or compute-based path tracing, targeting research in neural importance sampling and light transport.
 
 ## License
