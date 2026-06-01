@@ -17,6 +17,9 @@ A Vulkan 1.2 renderer built from scratch in C++.
 - **Modular architecture** — clean separation of concerns across well-defined modules
 - **Basic Ray Tracing**
 
+
+<img width="483" height="510" alt="image" src="https://github.com/user-attachments/assets/3c64efe9-e636-41fd-87d0-d8b1c90b2dcd" />
+
 ## Architecture
 
 ```
