@@ -27,6 +27,9 @@ A Vulkan 1.2 renderer built from scratch in C++. Renders a textured glTF model t
 - **Per-material texture sampling** in the closest-hit shader via barycentric UV interpolation
 - **Runtime descriptor arrays** indexing per-sub-mesh vertex/index buffers and per-material textures
 
+
+<img width="483" height="510" alt="image" src="https://github.com/user-attachments/assets/3c64efe9-e636-41fd-87d0-d8b1c90b2dcd" />
+
 ## Architecture
 
 ```
