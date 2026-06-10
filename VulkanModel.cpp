@@ -10,6 +10,11 @@ void VulkanModel::init(VulkanContext &context, ResourceManager &resourceManager,
     this->resourceManager = &resourceManager;
     this->commandManager = &commandManager;
     load(modelPath);
+    std::cout << "pos offset: " << offsetof(Vertex, pos) << std::endl;
+    std::cout << "color offset: " << offsetof(Vertex, color) << std::endl;
+    std::cout << "texCoord offset: " << offsetof(Vertex, texCoord) << std::endl;
+    std::cout << "normal offset: " << offsetof(Vertex, normal) << std::endl;
+    std::cout << "sizeof Vertex: " << sizeof(Vertex) << std::endl;
 }
 
 void VulkanModel::load(const std::string &modelPath)
@@ -56,6 +61,15 @@ void VulkanModel::load(const std::string &modelPath)
                 texcoords = reinterpret_cast<const float *>(&texBuffer.data[texView.byteOffset + texAccessor.byteOffset]);
             }
 
+            const float* normals = nullptr;
+            if(primitive.attributes.find("NORMAL") != primitive.attributes.end()) 
+            {
+                const tinygltf::Accessor &normAccessor = gltfModel.accessors[primitive.attributes.find("NORMAL")->second];
+                const tinygltf::BufferView& normView = gltfModel.bufferViews[normAccessor.bufferView];
+                const tinygltf::Buffer& normBuffer = gltfModel.buffers[normView.buffer];
+                normals = reinterpret_cast<const float*>(&normBuffer.data[normView.byteOffset + normAccessor.byteOffset]);
+            }
+
             // Populate the vertices array for this primitive
             for (size_t i = 0; i < posAccessor.count; i++)
             {
@@ -75,7 +89,25 @@ void VulkanModel::load(const std::string &modelPath)
                 {
                     vertex.texCoord = {0.0f, 0.0f};
                 }
+                
+                if(normals)
+                {
+                    vertex.normal = {
+                        normals[i * 3 + 0],
+                        normals[i * 3 + 1],
+                        normals[i * 3 + 2]
+                    };
+                } else {
+                    vertex.normal = {0.0f, 1.0f, 0.0f};
+                }
                 vertices.push_back(vertex);
+
+                if (i == 0) {
+    std::cout << "First vertex normal: " 
+              << vertex.normal.x << ", " 
+              << vertex.normal.y << ", " 
+              << vertex.normal.z << std::endl;
+}
             }
 
             // Extract indices

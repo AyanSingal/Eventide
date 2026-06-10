@@ -10,6 +10,7 @@ struct Vertex {
     vec3 pos;
     vec3 color;
     vec2 texCoord;
+    vec3 normal;
 };
 
 layout(scalar, set = 0, binding = 3) buffer VertexBuffers { Vertex v[]; } vertices[];
@@ -24,12 +25,28 @@ void main()
     uint i1 = indices[meshId].i[gl_PrimitiveID * 3 + 1];
     uint i2 = indices[meshId].i[gl_PrimitiveID * 3 + 2];
 
-    vec2 uv0 = vertices[meshId].v[i0].texCoord;
-    vec2 uv1 = vertices[meshId].v[i1].texCoord;
-    vec2 uv2 = vertices[meshId].v[i2].texCoord;
+    Vertex v0 = vertices[meshId].v[i0];
+    Vertex v1 = vertices[meshId].v[i1];
+    Vertex v2 = vertices[meshId].v[i2];
 
     float w = 1.0 - baryCoords.x - baryCoords.y;
-    vec2 texCoord = w * uv0 + baryCoords.x * uv1 + baryCoords.y * uv2;
 
-    hitValue = texture(textures[nonuniformEXT(meshId)], texCoord).rgb;
+    // Interpolate UVs
+    vec2 texCoord = w * v0.texCoord + baryCoords.x * v1.texCoord + baryCoords.y * v2.texCoord;
+
+    // Interpolate normals (and transform to world space via the object's transform)
+    vec3 normal = normalize(w * v0.normal + baryCoords.x * v1.normal + baryCoords.y * v2.normal);
+    normal = normalize(vec3(gl_ObjectToWorldEXT * vec4(normal, 0.0)));
+
+    // Sample base color
+    vec3 baseColor = texture(textures[nonuniformEXT(meshId)], texCoord).rgb;
+
+    // Directional light coming from above and slightly to the side
+    vec3 lightDir = normalize(vec3(0.5, 1.0, 0.3));
+    float diffuse = max(dot(normal, lightDir), 0.0);
+
+    // A bit of ambient so unlit surfaces aren't pitch black
+    float ambient = 0.15;
+
+    hitValue = baseColor * (diffuse + ambient);
 }
