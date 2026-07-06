@@ -210,8 +210,8 @@ void Renderer::createDescriptorSetLayout()
 void Renderer::createGraphicsPipeline()
 {
 
-    auto vertShaderCode = ShaderUtils::readFile("shaders/vert.spv");
-    auto fragShaderCode = ShaderUtils::readFile("shaders/frag.spv");
+    auto vertShaderCode = ShaderUtils::readFile("shaders/shader.vert.spv");
+    auto fragShaderCode = ShaderUtils::readFile("shaders/shader.frag.spv");
 
     VkShaderModule vertShaderModule = ShaderUtils::createShaderModule(context->device, vertShaderCode);
     VkShaderModule fragShaderModule = ShaderUtils::createShaderModule(context->device, fragShaderCode);

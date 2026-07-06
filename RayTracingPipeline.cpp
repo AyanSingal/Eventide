@@ -57,7 +57,7 @@ void RayTracingPipeline::createDescriptorSets()
     tlasBinding.binding = 0;
     tlasBinding.descriptorType = VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR;
     tlasBinding.descriptorCount = 1;
-    tlasBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+    tlasBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR | VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
     
     VkDescriptorSetLayoutBinding imageBinding{};
     imageBinding.binding = 1;
@@ -222,13 +222,15 @@ void RayTracingPipeline::createDescriptorSets()
 
 void RayTracingPipeline::createPipeline()
 {
-    auto raygenCode = ShaderUtils::readFile("shaders/rgen.spv");
-    auto missCode = ShaderUtils::readFile("shaders/rmiss.spv");
-    auto chitCode = ShaderUtils::readFile("shaders/rchit.spv");
+    auto raygenCode = ShaderUtils::readFile("shaders/raygen.rgen.spv");
+    auto missCode = ShaderUtils::readFile("shaders/miss.rmiss.spv");
+    auto chitCode = ShaderUtils::readFile("shaders/closesthit.rchit.spv");
+    auto shadowMissCode = ShaderUtils::readFile("shaders/shadowmiss.rmiss.spv");
 
     VkShaderModule raygenModule = ShaderUtils::createShaderModule(context->device, raygenCode);
     VkShaderModule missModule = ShaderUtils::createShaderModule(context->device, missCode);
     VkShaderModule chitModule = ShaderUtils::createShaderModule(context->device, chitCode);
+    VkShaderModule shadowMissModule = ShaderUtils::createShaderModule(context->device, shadowMissCode);
 
     VkPipelineShaderStageCreateInfo raygenStage{};
     raygenStage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
@@ -248,7 +250,13 @@ void RayTracingPipeline::createPipeline()
     chitStage.module = chitModule;
     chitStage.pName = "main";
 
-    std::array<VkPipelineShaderStageCreateInfo, 3> stages = { raygenStage, missStage, chitStage };
+    VkPipelineShaderStageCreateInfo shadowMissStage{};
+    shadowMissStage.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO;
+    shadowMissStage.stage = VK_SHADER_STAGE_MISS_BIT_KHR;
+    shadowMissStage.module = shadowMissModule;
+    shadowMissStage.pName = "main";
+
+    std::array<VkPipelineShaderStageCreateInfo, 4> stages = { raygenStage, missStage, chitStage, shadowMissStage };
 
     VkRayTracingShaderGroupCreateInfoKHR raygenGroup{};
     raygenGroup.sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR;
@@ -274,7 +282,15 @@ void RayTracingPipeline::createPipeline()
     hitGroup.anyHitShader = VK_SHADER_UNUSED_KHR;
     hitGroup.intersectionShader = VK_SHADER_UNUSED_KHR;
 
-    std::array<VkRayTracingShaderGroupCreateInfoKHR, 3> groups = {raygenGroup, missGroup, hitGroup};
+    VkRayTracingShaderGroupCreateInfoKHR shadowMissGroup{};
+    shadowMissGroup.sType = VK_STRUCTURE_TYPE_RAY_TRACING_SHADER_GROUP_CREATE_INFO_KHR;
+    shadowMissGroup.type = VK_RAY_TRACING_SHADER_GROUP_TYPE_GENERAL_KHR;
+    shadowMissGroup.generalShader = 3;
+    shadowMissGroup.closestHitShader = VK_SHADER_UNUSED_KHR;
+    shadowMissGroup.anyHitShader = VK_SHADER_UNUSED_KHR;
+    shadowMissGroup.intersectionShader = VK_SHADER_UNUSED_KHR;
+
+    std::array<VkRayTracingShaderGroupCreateInfoKHR, 4> groups = {raygenGroup, missGroup, hitGroup, shadowMissGroup};
 
     VkPipelineLayoutCreateInfo layoutInfo{};
     layoutInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
@@ -292,7 +308,7 @@ void RayTracingPipeline::createPipeline()
     pipelineInfo.pStages = stages.data();
     pipelineInfo.groupCount = static_cast<uint32_t>(groups.size());
     pipelineInfo.pGroups = groups.data();
-    pipelineInfo.maxPipelineRayRecursionDepth = 1;
+    pipelineInfo.maxPipelineRayRecursionDepth = 2;
     pipelineInfo.layout = pipelineLayout;
 
     if(context->vkCreateRayTracingPipelinesKHR(context->device, VK_NULL_HANDLE, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &pipeline) != VK_SUCCESS)
@@ -303,6 +319,7 @@ void RayTracingPipeline::createPipeline()
     vkDestroyShaderModule(context->device, raygenModule, nullptr);
     vkDestroyShaderModule(context->device, missModule, nullptr);
     vkDestroyShaderModule(context->device, chitModule, nullptr);
+    vkDestroyShaderModule(context->device, shadowMissModule, nullptr);
 }
 
 void RayTracingPipeline::createShaderBindingTable()
@@ -321,7 +338,7 @@ void RayTracingPipeline::createShaderBindingTable()
 
     uint32_t handleSizeAligned = (handleSize + handleAlignment - 1) & ~(handleAlignment - 1);
 
-    uint32_t groupCount = 3;
+    uint32_t groupCount = 4;
 
     uint32_t sbtSize = groupCount * handleSize;
     std::vector<uint8_t> handleData(sbtSize);
@@ -329,7 +346,9 @@ void RayTracingPipeline::createShaderBindingTable()
         context->device, pipeline, 0, groupCount, sbtSize, handleData.data());
 
     uint32_t raygenRegionSize = (handleSizeAligned + baseAlignment - 1) & ~(baseAlignment - 1);
-    uint32_t missRegionSize = (handleSizeAligned + baseAlignment - 1) & ~(baseAlignment - 1);
+    uint32_t missCount = 2;
+    uint32_t missRegionSize = missCount * handleSizeAligned;
+    missRegionSize = (missRegionSize + baseAlignment - 1) & ~(baseAlignment - 1);
     uint32_t hitRegionSize = (handleSizeAligned + baseAlignment - 1) & ~(baseAlignment - 1);
     uint32_t totalSize = raygenRegionSize + missRegionSize + hitRegionSize;
 
@@ -344,6 +363,7 @@ void RayTracingPipeline::createShaderBindingTable()
 
     memcpy(dst, handleData.data() + 0 * handleSize, handleSize);
     memcpy(dst + raygenRegionSize, handleData.data() + 1 * handleSize, handleSize);
+    memcpy(dst + raygenRegionSize + handleSizeAligned, handleData.data() + 3 * handleSize, handleSize);
     memcpy(dst + raygenRegionSize + missRegionSize, handleData.data() + 2 * handleSize, handleSize);
 
     vkUnmapMemory(context->device, sbtMemory);

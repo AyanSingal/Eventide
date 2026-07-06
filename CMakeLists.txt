@@ -100,13 +100,13 @@ set(SHADER_SOURCES
     ${SHADER_SOURCE_DIR}/raygen.rgen
     ${SHADER_SOURCE_DIR}/miss.rmiss
     ${SHADER_SOURCE_DIR}/closesthit.rchit
+    ${SHADER_SOURCE_DIR}/shadowmiss.rmiss
 )
 
 foreach(SHADER_SOURCE ${SHADER_SOURCES})
     # Extract filename: "shader.vert" -> "vert.spv"
-    get_filename_component(SHADER_EXT ${SHADER_SOURCE} LAST_EXT)   # ".vert"
-    string(SUBSTRING ${SHADER_EXT} 1 -1 SHADER_STAGE)              # "vert"
-    set(SHADER_OUTPUT "${SHADER_OUTPUT_DIR}/${SHADER_STAGE}.spv")
+    get_filename_component(SHADER_NAME ${SHADER_SOURCE} NAME)      # "shader.vert"
+    set(SHADER_OUTPUT "${SHADER_OUTPUT_DIR}/${SHADER_NAME}.spv")
 
     add_custom_command(
         OUTPUT ${SHADER_OUTPUT}
