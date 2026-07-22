@@ -35,14 +35,30 @@ void RayTracingPipeline::createUBO()
     vkMapMemory(context->device, uboMemory, 0, bufferSize, 0, &uboMapped);
 }
 
+void RayTracingPipeline::createQueryResultBuffer()
+{
+    VkDeviceSize bufferSize = sizeof(RTQueryResult);
+    resourceManager->createBuffer(bufferSize,
+        VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+        VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+        rtQueryResultBuffer, rtQueryResultMemory);
+    vkMapMemory(context->device, rtQueryResultMemory, 0, bufferSize, 0, &rtQueryResultMapped);
+}
+
+RTQueryResult RayTracingPipeline::getQueryResult()
+{
+    RTQueryResult result;
+    memcpy(&result, rtQueryResultMapped, sizeof(RTQueryResult));
+    return result;
+}
+
 void RayTracingPipeline::updateUBO()
 {
     float aspectRatio = swapchain->swapChainExtent.width / (float)swapchain->swapChainExtent.height;
 
     RTUniformBufferObject ubo{};
     ubo.viewInverse = glm::inverse(camera->getViewMatrix());
-    glm::mat4 proj = glm::perspective(glm::radians(45.0f), aspectRatio, 0.1f, 10000.0f);
-    ubo.projInverse = glm::inverse(proj);
+    ubo.projInverse = glm::inverse(camera->getProjectionMatrix(aspectRatio));
 
     memcpy(uboMapped, &ubo, sizeof(ubo));
 }
@@ -89,7 +105,13 @@ void RayTracingPipeline::createDescriptorSets()
     textureBinding.descriptorCount = texCount;
     textureBinding.stageFlags = VK_SHADER_STAGE_CLOSEST_HIT_BIT_KHR;
 
-    std::array<VkDescriptorSetLayoutBinding, 6> bindings = { tlasBinding, imageBinding, uboBinding, vertexBinding, indexBinding, textureBinding };
+    VkDescriptorSetLayoutBinding resultBinding{};
+    resultBinding.binding = 6;
+    resultBinding.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    resultBinding.descriptorCount = 1;
+    resultBinding.stageFlags = VK_SHADER_STAGE_RAYGEN_BIT_KHR;
+
+    std::array<VkDescriptorSetLayoutBinding, 7> bindings = { tlasBinding, imageBinding, uboBinding, vertexBinding, indexBinding, textureBinding, resultBinding };
 
     VkDescriptorSetLayoutCreateInfo layoutInfo{};
     layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -103,12 +125,13 @@ void RayTracingPipeline::createDescriptorSets()
 
 
     //POOL
-    std::array<VkDescriptorPoolSize, 5> poolSizes{};
+    std::array<VkDescriptorPoolSize, 6> poolSizes{};
     poolSizes[0] = {VK_DESCRIPTOR_TYPE_ACCELERATION_STRUCTURE_KHR, 1};
     poolSizes[1] = {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1};
     poolSizes[2] = {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1};
     poolSizes[3] = {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, meshCount * 2};
     poolSizes[4] = {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, texCount};
+    poolSizes[5] = {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1};
 
     VkDescriptorPoolCreateInfo poolInfo{};
     poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -216,7 +239,20 @@ void RayTracingPipeline::createDescriptorSets()
     textureWrite.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     textureWrite.pImageInfo = textureInfos.data();
 
-    std::array<VkWriteDescriptorSet, 6> writes = {tlasWrite, imageWrite, uboWrite, vertexWrite, indexWrite, textureWrite};
+    VkDescriptorBufferInfo resultInfo{};
+    resultInfo.buffer = rtQueryResultBuffer;
+    resultInfo.offset = 0;
+    resultInfo.range = sizeof(RTQueryResult);
+
+    VkWriteDescriptorSet resultWrite{};
+    resultWrite.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    resultWrite.dstSet = descriptorSet;
+    resultWrite.dstBinding = 6;
+    resultWrite.descriptorCount = 1;
+    resultWrite.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    resultWrite.pBufferInfo = &resultInfo;
+
+    std::array<VkWriteDescriptorSet, 7> writes = {tlasWrite, imageWrite, uboWrite, vertexWrite, indexWrite, textureWrite, resultWrite};
     vkUpdateDescriptorSets(context->device, static_cast<uint32_t>(writes.size()), writes.data(), 0, nullptr);
 }
 
@@ -481,6 +517,7 @@ void RayTracingPipeline::init(VulkanContext& context, ResourceManager& resourceM
 
     createStorageImage();
     createUBO();
+    createQueryResultBuffer();
     createDescriptorSets();
     createPipeline();
     createShaderBindingTable();
@@ -497,6 +534,9 @@ void RayTracingPipeline::cleanup()
 
     vkDestroyBuffer(context->device, sbtBuffer, nullptr);
     vkFreeMemory(context->device, sbtMemory, nullptr);
+
+    vkDestroyBuffer(context->device, rtQueryResultBuffer, nullptr);
+    vkFreeMemory(context->device, rtQueryResultMemory, nullptr);
 
     vkDestroyPipeline(context->device, pipeline, nullptr);
     vkDestroyPipelineLayout(context->device, pipelineLayout, nullptr);

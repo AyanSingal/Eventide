@@ -12,6 +12,8 @@
 #include "Camera.h"
 #include "ShaderUtils.h"
 #include "RayTracingPipeline.h"
+#include "GBufferPipeline.h"
+#include "SSRQueryPipeline.h"
 
 #include "imgui.h"
 #include "imgui_impl_glfw.h"
@@ -30,6 +32,8 @@ public:
         VulkanModel &model, 
         Camera &camera,
         RayTracingPipeline &rtPipeline,
+        GBufferPipeline &gbufferPipeline,
+        SSRQueryPipeline &ssrQueryPipeline,
         const std::vector<glm::mat4>& modelMatrices,
         GLFWwindow* window);
         
@@ -46,6 +50,8 @@ private:
     Camera* camera = nullptr;
     GLFWwindow* window = nullptr;
     RayTracingPipeline* rtPipeline = nullptr;
+    GBufferPipeline* gbufferPipeline = nullptr;
+    SSRQueryPipeline* ssrQueryPipeline = nullptr;
     std::vector<glm::mat4> modelMatrices;
     
 
@@ -66,8 +72,13 @@ private:
     std::vector<void*> uniformBuffersMapped;
 
     VkDescriptorPool imguiDescriptorPool;
-    
 
+    VkDescriptorSet positionDebugTexture;
+    VkDescriptorSet normalDebugTexture;
+    VkDescriptorSet albedoDebugTexture;
+
+    void renderImGuiOverlay(VkCommandBuffer commandBuffer, uint32_t imageIndex);
+    
     void createDescriptorSetLayout();
     void createGraphicsPipeline();
     void createUniformBuffers();

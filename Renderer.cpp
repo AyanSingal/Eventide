@@ -1,6 +1,6 @@
 #include "Renderer.h"
 
-void Renderer::init(VulkanContext &context, ResourceManager &resourceManager, CommandManager &commandManager, VulkanSwapchain &swapchain, VulkanModel &model, Camera &camera, RayTracingPipeline &rtPipeline, const std::vector<glm::mat4>& modelMatrices, GLFWwindow* window)
+void Renderer::init(VulkanContext &context, ResourceManager &resourceManager, CommandManager &commandManager, VulkanSwapchain &swapchain, VulkanModel &model, Camera &camera, RayTracingPipeline &rtPipeline, GBufferPipeline &gbufferPipeline, SSRQueryPipeline &ssrQueryPipeline, const std::vector<glm::mat4>& modelMatrices, GLFWwindow* window)
 {
     this->context = &context;
     this->resourceManager = &resourceManager;
@@ -11,6 +11,8 @@ void Renderer::init(VulkanContext &context, ResourceManager &resourceManager, Co
     this->modelMatrices = modelMatrices;
     this->window = window;
     this->rtPipeline = &rtPipeline;
+    this->gbufferPipeline = &gbufferPipeline;
+    this->ssrQueryPipeline = &ssrQueryPipeline;
     createDescriptorSetLayout();
     createGraphicsPipeline();
     createUniformBuffers();
@@ -23,11 +25,11 @@ void Renderer::init(VulkanContext &context, ResourceManager &resourceManager, Co
 void Renderer::setupImgui()
 {
     VkDescriptorPoolSize imguiPoolSizes[] = {
-        {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1}};
+        {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 8}};
     VkDescriptorPoolCreateInfo imguiPoolInfo{};
     imguiPoolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
     imguiPoolInfo.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT;
-    imguiPoolInfo.maxSets = 1;
+    imguiPoolInfo.maxSets = 8;
     imguiPoolInfo.poolSizeCount = 1;
     imguiPoolInfo.pPoolSizes = imguiPoolSizes;
     vkCreateDescriptorPool(context->device, &imguiPoolInfo, nullptr, &imguiDescriptorPool);
@@ -49,13 +51,72 @@ void Renderer::setupImgui()
     initInfo.ImageCount = static_cast<uint32_t>(swapchain->swapChainImages.size());
     initInfo.UseDynamicRendering = true;
 
-    initInfo.PipelineInfoMain.MSAASamples = context->msaaSamples;
+    initInfo.PipelineInfoMain.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
     initInfo.PipelineInfoMain.PipelineRenderingCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_RENDERING_CREATE_INFO;
     initInfo.PipelineInfoMain.PipelineRenderingCreateInfo.colorAttachmentCount = 1;
     initInfo.PipelineInfoMain.PipelineRenderingCreateInfo.pColorAttachmentFormats = &swapchain->swapChainImageFormat;
     initInfo.PipelineInfoMain.PipelineRenderingCreateInfo.depthAttachmentFormat = context->findDepthFormat();
 
     ImGui_ImplVulkan_Init(&initInfo);
+
+    positionDebugTexture = ImGui_ImplVulkan_AddTexture(gbufferPipeline->gbufferSampler, gbufferPipeline->positionImageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    normalDebugTexture = ImGui_ImplVulkan_AddTexture(gbufferPipeline->gbufferSampler, gbufferPipeline->normalImageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    albedoDebugTexture = ImGui_ImplVulkan_AddTexture(gbufferPipeline->gbufferSampler, gbufferPipeline->albedoImageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+}
+
+void Renderer::renderImGuiOverlay(VkCommandBuffer commandBuffer, uint32_t imageIndex)
+{
+    VkImageMemoryBarrier toColorAttachment{};
+    toColorAttachment.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    toColorAttachment.oldLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    toColorAttachment.newLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    toColorAttachment.image = swapchain->swapChainImages[imageIndex];
+    toColorAttachment.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+    toColorAttachment.srcAccessMask = 0;
+    toColorAttachment.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    toColorAttachment.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    toColorAttachment.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+
+    vkCmdPipelineBarrier(commandBuffer,
+                         VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+                         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                         0, 0, nullptr, 0, nullptr, 1, &toColorAttachment);
+
+    VkRenderingAttachmentInfo colorAttachment{};
+    colorAttachment.sType = VK_STRUCTURE_TYPE_RENDERING_ATTACHMENT_INFO;
+    colorAttachment.imageView = swapchain->swapChainImageViews[imageIndex];
+    colorAttachment.imageLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+    colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+
+    VkRenderingInfo renderingInfo{};
+    renderingInfo.sType = VK_STRUCTURE_TYPE_RENDERING_INFO;
+    renderingInfo.renderArea.offset = {0, 0};
+    renderingInfo.renderArea.extent = swapchain->swapChainExtent;
+    renderingInfo.layerCount = 1;
+    renderingInfo.colorAttachmentCount = 1;
+    renderingInfo.pColorAttachments = &colorAttachment;
+
+    context->vkCmdBeginRenderingKHR(commandBuffer, &renderingInfo);
+    ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffer);
+    context->vkCmdEndRenderingKHR(commandBuffer);
+
+    VkImageMemoryBarrier toPresent{};
+    toPresent.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    toPresent.oldLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+    toPresent.newLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+    toPresent.image = swapchain->swapChainImages[imageIndex];
+    toPresent.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+    toPresent.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+    toPresent.dstAccessMask = 0;
+    toPresent.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    toPresent.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+
+    vkCmdPipelineBarrier(commandBuffer,
+                         VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+                         VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+                         0, 0, nullptr, 0, nullptr, 1, &toPresent);
 }
 
 void Renderer::createUniformBuffers()
@@ -593,9 +654,35 @@ void Renderer::drawFrame()
     ImGui::NewFrame();
     ImGui::Begin("Debug");
     ImGui::Text("Camera Position: (%.2f, %.2f, %.2f)",
-        camera->position.x, camera->position.y, camera->position.z);
+                camera->position.x, camera->position.y, camera->position.z);
     ImGui::Text("Frame Time: %.3f ms", 1000.0f / ImGui::GetIO().Framerate);
     ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
+    ImGui::Separator();
+    ImGui::Text("G-Buffer Albedo");
+    ImGui::Image(albedoDebugTexture, ImVec2(320, 240));
+    ImGui::Text("G-Buffer Normal (world-space, negative components clip to black)");
+    ImGui::Image(normalDebugTexture, ImVec2(320, 240));
+    ImGui::Text("G-Buffer Position (raw world-space, likely washed out)");
+    ImGui::Image(positionDebugTexture, ImVec2(320, 240));
+    ImGui::Separator();
+    SSRQueryResult ssrResult = ssrQueryPipeline->getResult();
+    ImGui::Text("SSR Query Ray Hit: %s", ssrResult.hit ? "YES" : "NO");
+    if (ssrResult.hit)
+    {
+        ImGui::Text("Hit Position: (%.2f, %.2f, %.2f)", ssrResult.hitPosition.x, ssrResult.hitPosition.y, ssrResult.hitPosition.z);
+        ImGui::Text("Hit Normal: (%.2f, %.2f, %.2f)", ssrResult.hitNormal.x, ssrResult.hitNormal.y, ssrResult.hitNormal.z);
+        ImGui::Text("Hit Albedo: (%.2f, %.2f, %.2f)", ssrResult.hitAlbedo.x, ssrResult.hitAlbedo.y, ssrResult.hitAlbedo.z);
+    }
+        ImGui::Separator();
+    RTQueryResult rtResult = rtPipeline->getQueryResult();
+    ImGui::Text("RT Ground Truth Hit: %s", rtResult.hit ? "YES" : "NO");
+    if (rtResult.hit) {
+        ImGui::Text("Hit Position: (%.2f, %.2f, %.2f)", rtResult.hitPosition.x, rtResult.hitPosition.y, rtResult.hitPosition.z);
+        ImGui::Text("Hit Normal: (%.2f, %.2f, %.2f)", rtResult.hitNormal.x, rtResult.hitNormal.y, rtResult.hitNormal.z);
+        ImGui::Text("Hit Albedo: (%.2f, %.2f, %.2f)", rtResult.hitAlbedo.x, rtResult.hitAlbedo.y, rtResult.hitAlbedo.z);
+    }
+
+
     ImGui::End();
     ImGui::Render();
 
@@ -603,10 +690,17 @@ void Renderer::drawFrame()
     beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
     vkBeginCommandBuffer(commandManager->graphicsCommandBuffers[currentFrame], &beginInfo);
 
+    gbufferPipeline->updateUBO();
+    gbufferPipeline->recordCommandBuffer(commandManager->graphicsCommandBuffers[currentFrame]);
+
+    ssrQueryPipeline->updateQuery();
+    ssrQueryPipeline->recordCommandBuffer(commandManager->graphicsCommandBuffers[currentFrame]);
+
     if (rtPipeline)
     {
         rtPipeline->updateUBO();
         rtPipeline->recordCommandBuffer(commandManager->graphicsCommandBuffers[currentFrame], imageIndex);
+        renderImGuiOverlay(commandManager->graphicsCommandBuffers[currentFrame], imageIndex);
     }
     else
     {

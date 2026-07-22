@@ -13,6 +13,8 @@
 #include "Camera.h"
 #include "RayTracingAS.h"
 #include "RayTracingPipeline.h"
+#include "GBufferPipeline.h"
+#include "SSRQueryPipeline.h"
 #include "imgui.h"
 
 const uint32_t WIDTH = 800;
@@ -43,7 +45,8 @@ private:
     Camera camera;
     RayTracingAS rayTracingAS;
     RayTracingPipeline rtPipeline;
-
+    GBufferPipeline gbufferPipeline;
+    SSRQueryPipeline ssrQueryPipeline;
     float lastMouseX = 400.0f; // center of window
     float lastMouseY = 300.0f;
     bool firstMouse = true;
@@ -73,7 +76,9 @@ private:
         model.init(context, resourceManager, commandManager, MODEL_PATH);
         rayTracingAS.init(context, resourceManager, commandManager, model, modelMatrices);
         rtPipeline.init(context, resourceManager, commandManager, rayTracingAS, swapchain, model, camera);
-        renderer.init(context, resourceManager, commandManager, swapchain, model, camera, rtPipeline, modelMatrices, window);
+        gbufferPipeline.init(context, resourceManager, commandManager, swapchain, model, camera, modelMatrices);
+        ssrQueryPipeline.init(context, resourceManager, commandManager, swapchain, gbufferPipeline, camera);
+        renderer.init(context, resourceManager, commandManager, swapchain, model, camera, rtPipeline, gbufferPipeline, ssrQueryPipeline, modelMatrices, window);
     }
 
     void mainLoop()
@@ -96,6 +101,8 @@ private:
     void cleanup()
     {
         rtPipeline.cleanup();
+        gbufferPipeline.cleanup();
+        ssrQueryPipeline.cleanup();
         rayTracingAS.cleanup();
         swapchain.cleanupSwapChain();
         model.cleanup();

@@ -8,14 +8,35 @@ layout(set = 0, binding = 2) uniform CameraUBO{
     mat4 projInverse;
 } cam;
 
-layout(location = 0) rayPayloadEXT vec3 hitValue;
+struct HitPayload {
+    vec3 color;
+    vec3 hitPos;
+    vec3 hitNormal;
+    vec3 albedo;
+    int hit;
+};
+
+struct RTQueryResult {
+    vec4 hitPosition;
+    vec4 hitNormal;
+    vec4 hitAlbedo;
+    int hit;
+    int pad0;
+    int pad1;
+    int pad2;
+};
+
+layout(set = 0, binding = 6) buffer RTQueryResultBuffer {
+    RTQueryResult rtResult;
+};
+
+layout(location = 0) rayPayloadEXT HitPayload payload;
 
 void main()
 {
     const vec2 pixelCenter = vec2(gl_LaunchIDEXT.xy) + vec2(0.5);
     const vec2 uv = pixelCenter / vec2(gl_LaunchSizeEXT.xy);
     vec2 d = uv * 2.0 - 1.0;
-    d.y *= -1.0;
 
     vec4 origin = cam.viewInverse * vec4(0, 0, 0, 1);
     vec4 target = cam.projInverse * vec4(d.x, d.y, 1, 1);
@@ -26,5 +47,27 @@ void main()
                 origin.xyz, 0.001, direction.xyz, 10000.0,
                 0);
     
-    imageStore(outputImage, ivec2(gl_LaunchIDEXT.xy), vec4(hitValue.bgr, 1.0));
+    imageStore(outputImage, ivec2(gl_LaunchIDEXT.xy), vec4(payload.color.bgr, 1.0));
+
+    if (gl_LaunchIDEXT.xy == uvec2(0, 0))
+    {
+        vec4 queryOriginH = cam.viewInverse * vec4(0, 0, 0, 1);
+        vec4 queryDirH = cam.viewInverse * vec4(0, 0, -1, 0);
+        vec3 queryOrigin = queryOriginH.xyz;
+        vec3 queryDirection = normalize(queryDirH.xyz);
+
+        traceRayEXT(topLevelAS, gl_RayFlagsOpaqueEXT, 0xFF,
+                    0, 0, 0,
+                    queryOrigin, 0.001, queryDirection, 10000.0,
+                    0);
+
+        if (payload.hit == 1) {
+            rtResult.hitPosition = vec4(payload.hitPos, 1.0);
+            rtResult.hitNormal = vec4(payload.hitNormal, 0.0);
+            rtResult.hitAlbedo = vec4(payload.albedo, 1.0);
+            rtResult.hit = 1;
+        } else {
+            rtResult.hit = 0;
+        }
+    }
 }

@@ -51,6 +51,8 @@ add_executable(${PROJECT_NAME}
     Camera.cpp
     RayTracingAS.cpp
     RayTracingPipeline.cpp
+    GBufferPipeline.cpp
+    SSRQueryPipeline.cpp
     ${IMGUI_DIR}/imgui.cpp
     ${IMGUI_DIR}/imgui_draw.cpp
     ${IMGUI_DIR}/imgui_tables.cpp
@@ -101,6 +103,9 @@ set(SHADER_SOURCES
     ${SHADER_SOURCE_DIR}/miss.rmiss
     ${SHADER_SOURCE_DIR}/closesthit.rchit
     ${SHADER_SOURCE_DIR}/shadowmiss.rmiss
+    ${SHADER_SOURCE_DIR}/gbuffer.vert
+    ${SHADER_SOURCE_DIR}/gbuffer.frag
+    ${SHADER_SOURCE_DIR}/ssr_query.comp
 )
 
 foreach(SHADER_SOURCE ${SHADER_SOURCES})

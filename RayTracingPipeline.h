@@ -15,6 +15,16 @@ struct RTUniformBufferObject {
     glm::mat4 projInverse;
 };
 
+struct RTQueryResult {
+    glm::vec4 hitPosition;
+    glm::vec4 hitNormal;
+    glm::vec4 hitAlbedo;
+    int hit;
+    int pad0;
+    int pad1;
+    int pad2;
+};
+
 class RayTracingPipeline{
 private:
     VulkanContext *context = nullptr;
@@ -53,6 +63,13 @@ private:
     void createPipeline();
     void createShaderBindingTable();
     void createUBO();
+
+    
+
+    VkBuffer rtQueryResultBuffer;
+    VkDeviceMemory rtQueryResultMemory;
+    void* rtQueryResultMapped;
+    void createQueryResultBuffer();
     
 
 public:
@@ -61,5 +78,6 @@ public:
                                 VulkanSwapchain& swapchain, VulkanModel& model, Camera& camera);
     void updateUBO();
     void recordCommandBuffer(VkCommandBuffer commandBuffer, uint32_t imageIndex);
+    RTQueryResult getQueryResult();
     void cleanup();
 };

@@ -3,8 +3,17 @@
 #extension GL_EXT_nonuniform_qualifier : require
 #extension GL_EXT_scalar_block_layout : require
 
-layout(location = 0) rayPayloadInEXT vec3 hitValue;
+struct HitPayload {
+    vec3 color;
+    vec3 hitPos;
+    vec3 hitNormal;
+    vec3 albedo;
+    int hit;
+};
+
+layout(location = 0) rayPayloadInEXT HitPayload payload;
 layout(location = 1) rayPayloadEXT bool shadowed;
+
 hitAttributeEXT vec2 baryCoords;
 
 struct Vertex {
@@ -71,5 +80,10 @@ void main()
     // A bit of ambient so unlit surfaces aren't pitch black
     float ambient = 0.15;
 
-    hitValue = baseColor * (diffuse + ambient);
+    payload.color = baseColor * (diffuse + ambient);
+    payload.hitPos = hitPos;
+    payload.hitNormal = normal;
+    payload.albedo = baseColor;
+    payload.hit = 1;
+
 }

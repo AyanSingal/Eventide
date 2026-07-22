@@ -5,7 +5,7 @@ Camera::Camera()
       up(0.0f, 1.0f, 0.0f),
       yaw(-135.0f),
       pitch(-35.0f),
-      fov(45.0f),
+      fov(78.0f),
       speed(2.5f),
       sensitivity(0.1f),
       nearPlane(0.1f),
