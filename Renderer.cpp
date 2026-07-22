@@ -62,6 +62,7 @@ void Renderer::setupImgui()
     positionDebugTexture = ImGui_ImplVulkan_AddTexture(gbufferPipeline->gbufferSampler, gbufferPipeline->positionImageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     normalDebugTexture = ImGui_ImplVulkan_AddTexture(gbufferPipeline->gbufferSampler, gbufferPipeline->normalImageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     albedoDebugTexture = ImGui_ImplVulkan_AddTexture(gbufferPipeline->gbufferSampler, gbufferPipeline->albedoImageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    ssrOutputDebugTexture = ImGui_ImplVulkan_AddTexture(ssrQueryPipeline->ssrOutputSampler, ssrQueryPipeline->ssrOutputImageView, VK_IMAGE_LAYOUT_GENERAL);
 
 }
 
@@ -682,6 +683,9 @@ void Renderer::drawFrame()
         ImGui::Text("Hit Albedo: (%.2f, %.2f, %.2f)", rtResult.hitAlbedo.x, rtResult.hitAlbedo.y, rtResult.hitAlbedo.z);
     }
 
+    ImGui::Separator();
+    ImGui::Text("SSR Reconstructed View (full-screen, straight per-pixel rays)");
+    ImGui::Image(ssrOutputDebugTexture, ImVec2(320, 240));
 
     ImGui::End();
     ImGui::Render();

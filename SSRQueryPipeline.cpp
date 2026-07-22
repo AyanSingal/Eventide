@@ -13,6 +13,7 @@ void SSRQueryPipeline::init(VulkanContext& context, ResourceManager& resourceMan
     createDescriptorSetLayouts();
     createPipeline();
     createBuffers();
+    createOutputImage();
     createDescriptorPool();
     createDescriptorSets();
 }
@@ -38,7 +39,7 @@ void SSRQueryPipeline::createDescriptorSetLayouts()
         throw std::runtime_error("failed to create ssr gbuffer descriptor set layout!");
     }
 
-    std::array<VkDescriptorSetLayoutBinding, 2> queryBindings{};
+    std::array<VkDescriptorSetLayoutBinding, 3> queryBindings{};
     queryBindings[0].binding = 0;
     queryBindings[0].descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     queryBindings[0].descriptorCount = 1;
@@ -48,6 +49,11 @@ void SSRQueryPipeline::createDescriptorSetLayouts()
     queryBindings[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     queryBindings[1].descriptorCount = 1;
     queryBindings[1].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
+
+    queryBindings[2].binding = 2;
+    queryBindings[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    queryBindings[2].descriptorCount = 1;
+    queryBindings[2].stageFlags = VK_SHADER_STAGE_COMPUTE_BIT;
 
     VkDescriptorSetLayoutCreateInfo queryLayoutInfo{};
     queryLayoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
@@ -105,15 +111,46 @@ void SSRQueryPipeline::createBuffers()
     vkMapMemory(context->device, resultMemory, 0, sizeof(SSRQueryResult), 0, &resultMapped);
 }
 
+void SSRQueryPipeline::createOutputImage()
+{
+    uint32_t width = swapchain->swapChainExtent.width;
+    uint32_t height = swapchain->swapChainExtent.height;
+
+    resourceManager->createImage(width, height,1 , VK_SAMPLE_COUNT_1_BIT, VK_FORMAT_R8G8B8A8_UNORM,
+        VK_IMAGE_TILING_OPTIMAL,
+        VK_IMAGE_USAGE_STORAGE_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+        VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+        ssrOutputImage, ssrOutputImageMemory);
+    ssrOutputImageView = resourceManager->createImageView(ssrOutputImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_ASPECT_COLOR_BIT, 1);
+    resourceManager->transitionImageLayout(ssrOutputImage, VK_FORMAT_R8G8B8A8_UNORM, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, 1);
+
+    VkSamplerCreateInfo samplerInfo{};
+    samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    samplerInfo.magFilter = VK_FILTER_NEAREST;
+    samplerInfo.minFilter = VK_FILTER_NEAREST;
+    samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+
+    if(vkCreateSampler(context->device, &samplerInfo, nullptr, &ssrOutputSampler) != VK_SUCCESS)
+    {
+        throw std::runtime_error("failed to create ssr output sampler!");
+    }
+}
+
 void SSRQueryPipeline::createDescriptorPool()
 {
-    std::array<VkDescriptorPoolSize, 3> poolSizes{};
+    std::array<VkDescriptorPoolSize, 4> poolSizes{};
     poolSizes[0].type = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
     poolSizes[0].descriptorCount = 4;
     poolSizes[1].type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
     poolSizes[1].descriptorCount = 1;
     poolSizes[2].type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     poolSizes[2].descriptorCount = 1;
+    poolSizes[3].type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    poolSizes[3].descriptorCount = 1;
 
     VkDescriptorPoolCreateInfo poolInfo{};
     poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
@@ -180,7 +217,11 @@ void SSRQueryPipeline::createDescriptorSets()
     resultInfo.offset = 0;
     resultInfo.range = sizeof(SSRQueryResult);
 
-    std::array<VkWriteDescriptorSet, 2> queryWrites{};
+    VkDescriptorImageInfo outputImageInfo{};
+    outputImageInfo.imageView = ssrOutputImageView;
+    outputImageInfo.imageLayout = VK_IMAGE_LAYOUT_GENERAL;
+
+    std::array<VkWriteDescriptorSet, 3> queryWrites{};
     queryWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
     queryWrites[0].dstSet = queryDescriptorSet;
     queryWrites[0].dstBinding = 0;
@@ -194,6 +235,13 @@ void SSRQueryPipeline::createDescriptorSets()
     queryWrites[1].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     queryWrites[1].descriptorCount = 1;
     queryWrites[1].pBufferInfo = &resultInfo;
+    
+    queryWrites[2].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    queryWrites[2].dstSet = queryDescriptorSet;
+    queryWrites[2].dstBinding = 2;
+    queryWrites[2].descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    queryWrites[2].descriptorCount = 1;
+    queryWrites[2].pImageInfo = &outputImageInfo;
 
     vkUpdateDescriptorSets(context->device, static_cast<uint32_t>(queryWrites.size()), queryWrites.data(), 0, nullptr);
 }
@@ -203,15 +251,17 @@ void SSRQueryPipeline::updateQuery()
     float aspectRatio = swapchain->swapChainExtent.width / (float)swapchain->swapChainExtent.height;
 
     glm::mat4 view = camera->getViewMatrix();
-    glm::vec3 forward = glm::normalize(glm::vec3(glm::inverse(view) * glm::vec4(0, 0, -1, 0)));
+    glm::mat4 proj = camera->getProjectionMatrix(aspectRatio);
 
     SSRQueryUBO ubo{};
-    ubo.rayOrigin = glm::vec4(camera->position, 1.0f);
-    ubo.rayDirection = glm::vec4(forward, 0.0f);
     ubo.view = view;
-    ubo.proj = camera->getProjectionMatrix(aspectRatio);
+    ubo.proj = proj;
+    ubo.viewInverse = glm::inverse(view);
+    ubo.projInverse = glm::inverse(proj);
     ubo.maxDistance = 20.0f;
     ubo.stepSize = 0.05f;
+    ubo.imageWidth = swapchain->swapChainExtent.width;
+    ubo.imageHeight = swapchain->swapChainExtent.height;
 
     memcpy(queryUboMapped, &ubo, sizeof(ubo));
 }
@@ -222,8 +272,27 @@ void SSRQueryPipeline::recordCommandBuffer(VkCommandBuffer commandBuffer)
     VkDescriptorSet sets[2] = { gbufferDescriptorSet, queryDescriptorSet };
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipelineLayout, 0, 2, sets, 0, nullptr);
 
-    vkCmdDispatch(commandBuffer, 1, 1, 1);
+    uint32_t groupsX = (swapchain->swapChainExtent.width + 15) / 16;
+    uint32_t groupsY = (swapchain->swapChainExtent.height + 15) / 16;
+    vkCmdDispatch(commandBuffer, groupsX, groupsY, 1);
+
+    VkImageMemoryBarrier barrier{};
+    barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
+    barrier.oldLayout = VK_IMAGE_LAYOUT_GENERAL;
+    barrier.newLayout = VK_IMAGE_LAYOUT_GENERAL;
+    barrier.image = ssrOutputImage;
+    barrier.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+    barrier.srcAccessMask = VK_ACCESS_SHADER_WRITE_BIT;
+    barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
+    barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+    barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
+
+    vkCmdPipelineBarrier(commandBuffer,
+        VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT,
+        VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+        0, 0, nullptr, 0, nullptr, 1, &barrier);
 }
+
 
 SSRQueryResult SSRQueryPipeline::getResult()
 {
@@ -242,6 +311,12 @@ void SSRQueryPipeline::cleanup()
     vkDestroyDescriptorPool(context->device, descriptorPool, nullptr);
     vkDestroyDescriptorSetLayout(context->device, gbufferSetLayout, nullptr);
     vkDestroyDescriptorSetLayout(context->device, querySetLayout, nullptr);
+
+    vkDestroySampler(context->device, ssrOutputSampler, nullptr);
+    vkDestroyImageView(context->device, ssrOutputImageView, nullptr);
+    vkDestroyImage(context->device, ssrOutputImage, nullptr);
+    vkFreeMemory(context->device, ssrOutputImageMemory, nullptr);
+
 
     vkDestroyPipeline(context->device, pipeline, nullptr);
     vkDestroyPipelineLayout(context->device, pipelineLayout, nullptr);

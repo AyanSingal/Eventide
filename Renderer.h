@@ -76,6 +76,8 @@ private:
     VkDescriptorSet positionDebugTexture;
     VkDescriptorSet normalDebugTexture;
     VkDescriptorSet albedoDebugTexture;
+    VkDescriptorSet ssrOutputDebugTexture;
+
 
     void renderImGuiOverlay(VkCommandBuffer commandBuffer, uint32_t imageIndex);
     

@@ -10,15 +10,16 @@
 #include "ShaderUtils.h"
 
 struct SSRQueryUBO {
-    glm::vec4 rayOrigin;
-    glm::vec4 rayDirection;
     glm::mat4 view;
     glm::mat4 proj;
+    glm::mat4 viewInverse;
+    glm::mat4 projInverse;
     float maxDistance;
     float stepSize;
-    float pad0;
-    float pad1;
+    int imageWidth;
+    int imageHeight;
 };
+
 
 struct SSRQueryResult {
     glm::vec4 hitPosition;
@@ -38,6 +39,9 @@ public:
     void recordCommandBuffer(VkCommandBuffer commandBuffer);
     SSRQueryResult getResult();
     void cleanup();
+
+    VkImageView ssrOutputImageView;
+    VkSampler ssrOutputSampler;
 
 private:
     VulkanContext* context = nullptr;
@@ -64,9 +68,13 @@ private:
     VkDeviceMemory resultMemory;
     void* resultMapped;
 
+    VkImage ssrOutputImage;
+    VkDeviceMemory ssrOutputImageMemory;
+
     void createDescriptorSetLayouts();
     void createPipeline();
     void createBuffers();
     void createDescriptorPool();
     void createDescriptorSets();
+    void createOutputImage();
 };

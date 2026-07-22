@@ -1,19 +1,21 @@
-#version 460
+#version 450
 
-layout(local_size_x = 1) in;
+layout(local_size_x = 16, local_size_y = 16) in;
 
 layout(set = 0, binding = 0) uniform sampler2D gPosition;
 layout(set = 0, binding = 1) uniform sampler2D gNormal;
 layout(set = 0, binding = 2) uniform sampler2D gAlbedo;
 layout(set = 0, binding = 3) uniform sampler2D gDepth;
 
-layout(set = 1, binding = 0) uniform QueryUBO{
-    vec4 rayOrigin;
-    vec4 rayDirection;
+layout(set = 1, binding = 0) uniform QueryUBO {
     mat4 view;
     mat4 proj;
+    mat4 viewInverse;
+    mat4 projInverse;
     float maxDistance;
     float stepSize;
+    int imageWidth;
+    int imageHeight;
 } query;
 
 struct QueryResult {
@@ -30,31 +32,30 @@ layout(set = 1, binding = 1) buffer QueryResultBuffer {
     QueryResult result;
 };
 
-void main() {
-    vec3 origin = query.rayOrigin.xyz;
-    vec3 dir = normalize(query.rayDirection.xyz);
+layout(set = 1, binding = 2, rgba8) uniform image2D ssrOutputImage;
 
+bool marchRay(vec3 origin, vec3 dir, out vec3 hitPos, out vec3 hitNormal, out vec3 hitAlbedo)
+{
     vec3 prevSamplePoint = origin;
-    bool foundHit = false;
-
     int steps = int(query.maxDistance / query.stepSize);
 
-    for(int i = 1; i <= steps; i++) {
+    for (int i = 1; i <= steps; i++) {
         vec3 samplePoint = origin + dir * (float(i) * query.stepSize);
+
         vec4 clip = query.proj * query.view * vec4(samplePoint, 1.0);
-        if(clip.w <= 0.0) { prevSamplePoint = samplePoint; continue; }
+        if (clip.w <= 0.0) { prevSamplePoint = samplePoint; continue; }
         vec3 ndc = clip.xyz / clip.w;
-        if(ndc.x < -1.0 || ndc.x > 1.0 || ndc.y < -1.0 || ndc.y > 1.0) {prevSamplePoint = samplePoint; continue; }
+        if (ndc.x < -1.0 || ndc.x > 1.0 || ndc.y < -1.0 || ndc.y > 1.0) { prevSamplePoint = samplePoint; continue; }
 
         vec2 uv = ndc.xy * 0.5 + 0.5;
         float sceneDepthNdc = texture(gDepth, uv).r;
 
-        if(sceneDepthNdc >= 0.99999) {
+        if (sceneDepthNdc >= 0.99999) {
             prevSamplePoint = samplePoint;
             continue;
         }
-        
-        if(ndc.z >= sceneDepthNdc) {
+
+        if (ndc.z >= sceneDepthNdc) {
             vec3 lo = prevSamplePoint;
             vec3 hi = samplePoint;
             for (int b = 0; b < 8; b++) {
@@ -63,7 +64,7 @@ void main() {
                 vec3 midNdc = midClip.xyz / midClip.w;
                 vec2 midUv = midNdc.xy * 0.5 + 0.5;
                 float midSceneDepth = texture(gDepth, midUv).r;
-                if(midNdc.z >= midSceneDepth) {
+                if (midNdc.z >= midSceneDepth) {
                     hi = mid;
                 } else {
                     lo = mid;
@@ -74,18 +75,55 @@ void main() {
             vec3 hiNdc = hiClip.xyz / hiClip.w;
             vec2 hiUv = hiNdc.xy * 0.5 + 0.5;
 
-            result.hitPosition = texture(gPosition, hiUv);
-            result.hitNormal = texture(gNormal, hiUv);
-            result.hitAlbedo = texture(gAlbedo, hiUv);
-            result.hit = 1;
-            foundHit = true;
-            break;
+            hitPos = texture(gPosition, hiUv).xyz;
+            hitNormal = texture(gNormal, hiUv).xyz;
+            hitAlbedo = texture(gAlbedo, hiUv).xyz;
+            return true;
         }
 
         prevSamplePoint = samplePoint;
     }
 
-    if(!foundHit) {
-        result.hit = 0;
+    return false;
+}
+
+void main()
+{
+    ivec2 pixel = ivec2(gl_GlobalInvocationID.xy);
+    if (pixel.x >= query.imageWidth || pixel.y >= query.imageHeight) return;
+
+    vec2 pixelCenter = vec2(pixel) + vec2(0.5);
+    vec2 uv = pixelCenter / vec2(query.imageWidth, query.imageHeight);
+    vec2 d = uv * 2.0 - 1.0;
+
+    vec4 originH = query.viewInverse * vec4(0, 0, 0, 1);
+    vec4 targetH = query.projInverse * vec4(d.x, d.y, 1, 1);
+    vec4 dirH = query.viewInverse * vec4(normalize(targetH.xyz), 0);
+
+    vec3 hitPos, hitNormal, hitAlbedo;
+    bool didHit = marchRay(originH.xyz, normalize(dirH.xyz), hitPos, hitNormal, hitAlbedo);
+
+    vec3 outColor = vec3(0.0);
+    if (didHit) {
+        vec3 lightDir = normalize(vec3(0.5, 1.0, 0.3));
+        float diffuse = max(dot(hitNormal, lightDir), 0.0);
+        outColor = hitAlbedo * (diffuse + 0.15);
+    }
+    imageStore(ssrOutputImage, pixel, vec4(outColor, 1.0));
+
+    if (pixel == ivec2(0, 0)) {
+        vec4 fwdOriginH = query.viewInverse * vec4(0, 0, 0, 1);
+        vec4 fwdDirH = query.viewInverse * vec4(0, 0, -1, 0);
+        vec3 fwdHitPos, fwdHitNormal, fwdHitAlbedo;
+        bool fwdHit = marchRay(fwdOriginH.xyz, normalize(fwdDirH.xyz), fwdHitPos, fwdHitNormal, fwdHitAlbedo);
+
+        if (fwdHit) {
+            result.hitPosition = vec4(fwdHitPos, 1.0);
+            result.hitNormal = vec4(fwdHitNormal, 0.0);
+            result.hitAlbedo = vec4(fwdHitAlbedo, 1.0);
+            result.hit = 1;
+        } else {
+            result.hit = 0;
+        }
     }
 }
