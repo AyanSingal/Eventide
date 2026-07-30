@@ -16,7 +16,29 @@ layout(set = 1, binding = 0) uniform QueryUBO {
     float stepSize;
     int imageWidth;
     int imageHeight;
+    vec2 apertureOffset;
+    float handoffPlaneDistance;
+    float testWavelengthNm;
+    float goldenTestX;
+    float goldenTestZ;
+    float goldenTestDirX;
+    float goldenTestDirY;
+    float goldenTestDirZ;
+    float goldenTestWavelength;
+    float pad2;
+    float pad3;
 } query;
+
+struct GoldenTestResult {
+    float x_o;
+    float z_o;
+    float dirx_o;
+    float diry_o;
+    float dirz_o;
+    float intensity;
+    float pad0;
+    float pad1;
+};
 
 struct QueryResult {
     vec4 hitPosition;
@@ -33,6 +55,182 @@ layout(set = 1, binding = 1) buffer QueryResultBuffer {
 };
 
 layout(set = 1, binding = 2, rgba8) uniform image2D ssrOutputImage;
+
+layout(set = 1, binding = 3) buffer GoldenTestResultBuffer {
+    GoldenTestResult goldenResult;
+};
+
+layout(set = 2, binding = 0) readonly buffer LensWeights {
+    float w[4448];
+};
+
+layout(set = 2, binding = 1) uniform LensNormUBO {
+    float positionScaleI;
+    float positionScaleO;
+    float wavelengthMin;
+    float wavelengthMax;
+    float intensityMin;
+    float intensityMax;
+} lensNorm;
+
+const int L0_OFFSET = 0;
+const int L1_OFFSET = 160;
+const int L2_OFFSET = 1184;
+const int L3_OFFSET = 2208;
+const int L4_OFFSET = 3232;
+const int L5_OFFSET = 4256;
+
+void linear32x5(int offset, float x[5], out float y[32])
+{
+    for (int i = 0; i < 32; i++) {
+        float sum = 0.0;
+        for (int j = 0; j < 5; j++) {
+            sum += w[offset + i * 5 + j] * x[j];
+        }
+        y[i] = sum;
+    }
+}
+
+void linear32x32(int offset, float x[32], out float y[32])
+{
+    for (int i = 0; i < 32; i++) {
+        float sum = 0.0;
+        for (int j = 0; j < 32; j++) {
+            sum += w[offset + i * 32 + j] * x[j];
+        }
+        y[i] = sum;
+    }
+}
+
+void linear6x32(int offset, float x[32], out float y[6])
+{
+    for (int i = 0; i < 6; i++) {
+        float sum = 0.0;
+        for (int j = 0; j < 32; j++) {
+            sum += w[offset + i * 32 + j] * x[j];
+        }
+        y[i] = sum;
+    }
+}
+
+void evalLensMLP(float input5[5], out float outp[6])
+{
+    float h1[32]; linear32x5(L0_OFFSET, input5, h1);
+    for (int i = 0; i < 32; i++) h1[i] = tanh(h1[i]);
+
+    float h2[32]; linear32x32(L1_OFFSET, h1, h2);
+    for (int i = 0; i < 32; i++) h2[i] = tanh(h2[i]);
+
+    float h3[32]; linear32x32(L2_OFFSET, h2, h3);
+    for (int i = 0; i < 32; i++) h3[i] = tanh(h3[i]);
+
+    float h4[32]; linear32x32(L3_OFFSET, h3, h4);
+    for (int i = 0; i < 32; i++) h4[i] = tanh(h4[i]);
+
+    float h5[32]; linear32x32(L4_OFFSET, h4, h5);
+    for (int i = 0; i < 32; i++) h5[i] = tanh(h5[i]);
+
+    linear6x32(L5_OFFSET, h5, outp);
+}
+
+void canonicalizeInput(float x_i, float z_i, float dirx_i, float diry_i, float dirz_i,
+                        out float r, out float dirx_c, out float diry_c, out float dirz_c,
+                        out float rotAngle, out bool wasMirrored)
+{
+    r = length(vec2(x_i, z_i));
+    rotAngle = atan(x_i, z_i);
+
+    float c = cos(rotAngle);
+    float s = sin(rotAngle);
+    float dirx_rot = dirx_i * c - dirz_i * s;
+    float dirz_rot = dirx_i * s + dirz_i * c;
+
+    wasMirrored = dirx_rot < 0.0;
+    dirx_c = wasMirrored ? -dirx_rot : dirx_rot;
+    dirz_c = dirz_rot;
+    diry_c = diry_i;
+}
+
+void decanonicalizeOutput(float x_o_c, float z_o_c, float dirx_o_c, float diry_o_c, float dirz_o_c,
+                           float rotAngle, bool wasMirrored,
+                           out float x_o_w, out float z_o_w, out float dirx_o_w, out float diry_o_w, out float dirz_o_w)
+{
+    if (wasMirrored) {
+        x_o_c = -x_o_c;
+        dirx_o_c = -dirx_o_c;
+    }
+
+    float c = cos(-rotAngle);
+    float s = sin(-rotAngle);
+    x_o_w = x_o_c * c - z_o_c * s;
+    z_o_w = x_o_c * s + z_o_c * c;
+    dirx_o_w = dirx_o_c * c - dirz_o_c * s;
+    dirz_o_w = dirx_o_c * s + dirz_o_c * c;
+    diry_o_w = diry_o_c;
+}
+
+vec3 viewToLensLocal(vec3 v) { return vec3(v.x, -v.z, v.y); }
+vec3 lensLocalToView(vec3 l) { return vec3(l.x, l.z, -l.y); }
+
+void evalLensRay(vec3 originWorld, vec3 dirWorld, out vec3 exitOriginWorld, out vec3 exitDirWorld, out vec3 debugDirLensLocal)
+{
+    vec3 dirView = mat3(query.view) * dirWorld;
+    vec3 dirLensLocal = viewToLensLocal(dirView);
+    debugDirLensLocal = dirLensLocal;
+
+    float r, dirx_c, diry_c, dirz_c, rotAngle;
+    bool wasMirrored;
+    canonicalizeInput(query.apertureOffset.x, query.apertureOffset.y,
+                       dirLensLocal.x, dirLensLocal.y, dirLensLocal.z,
+                       r, dirx_c, diry_c, dirz_c, rotAngle, wasMirrored);
+
+    float wavelengthNorm = (query.testWavelengthNm - lensNorm.wavelengthMin) /
+                           (lensNorm.wavelengthMax - lensNorm.wavelengthMin);
+
+    float input5[5] = float[5](r / lensNorm.positionScaleI, dirx_c, diry_c, dirz_c, wavelengthNorm);
+    float outp[6];
+    evalLensMLP(input5, outp);
+
+    float x_o = outp[0] * lensNorm.positionScaleO;
+    float z_o = outp[1] * lensNorm.positionScaleO;
+
+    float x_o_w, z_o_w, dirx_o_w, diry_o_w, dirz_o_w;
+    decanonicalizeOutput(x_o, z_o, outp[2], outp[3], outp[4], rotAngle, wasMirrored,
+                          x_o_w, z_o_w, dirx_o_w, diry_o_w, dirz_o_w);
+
+    vec3 exitPosLensLocal = vec3(x_o_w, query.handoffPlaneDistance, z_o_w);
+    vec3 exitDirLensLocal = normalize(vec3(dirx_o_w, diry_o_w, dirz_o_w));
+
+    vec3 exitPosView = lensLocalToView(exitPosLensLocal);
+    vec3 exitDirView = lensLocalToView(exitDirLensLocal);
+
+    exitOriginWorld = originWorld + mat3(query.viewInverse) * exitPosView;
+    exitDirWorld = normalize(mat3(query.viewInverse) * exitDirView);
+}
+
+void evalLensDirect(float x_i, float z_i, float dirx_i, float diry_i, float dirz_i, float wavelengthNm,
+                     out float x_o, out float z_o, out float dirx_o, out float diry_o, out float dirz_o, out float intensity)
+{
+    float r, dirx_c, diry_c, dirz_c, rotAngle;
+    bool wasMirrored;
+    canonicalizeInput(x_i, z_i, dirx_i, diry_i, dirz_i, r, dirx_c, diry_c, dirz_c, rotAngle, wasMirrored);
+
+    float wavelengthNorm = (wavelengthNm - lensNorm.wavelengthMin) / (lensNorm.wavelengthMax - lensNorm.wavelengthMin);
+
+    float input5[5] = float[5](r / lensNorm.positionScaleI, dirx_c, diry_c, dirz_c, wavelengthNorm);
+    float outp[6];
+    evalLensMLP(input5, outp);
+
+    float x_o_c = outp[0] * lensNorm.positionScaleO;
+    float z_o_c = outp[1] * lensNorm.positionScaleO;
+
+    vec3 rawDir = normalize(vec3(outp[2], outp[3], outp[4]));
+
+    decanonicalizeOutput(x_o_c, z_o_c, rawDir.x, rawDir.y, rawDir.z, rotAngle, wasMirrored,
+                          x_o, z_o, dirx_o, diry_o, dirz_o);
+
+    intensity = outp[5] * (lensNorm.intensityMax - lensNorm.intensityMin) + lensNorm.intensityMin;
+}
 
 bool marchRay(vec3 origin, vec3 dir, out vec3 hitPos, out vec3 hitNormal, out vec3 hitAlbedo)
 {
@@ -100,8 +298,11 @@ void main()
     vec4 targetH = query.projInverse * vec4(d.x, d.y, 1, 1);
     vec4 dirH = query.viewInverse * vec4(normalize(targetH.xyz), 0);
 
+    vec3 lensOrigin, lensDir, debugUnused;
+    evalLensRay(originH.xyz, normalize(dirH.xyz), lensOrigin, lensDir, debugUnused);
+
     vec3 hitPos, hitNormal, hitAlbedo;
-    bool didHit = marchRay(originH.xyz, normalize(dirH.xyz), hitPos, hitNormal, hitAlbedo);
+    bool didHit = marchRay(lensOrigin, lensDir, hitPos, hitNormal, hitAlbedo);
 
     vec3 outColor = vec3(0.0);
     if (didHit) {
@@ -114,8 +315,15 @@ void main()
     if (pixel == ivec2(0, 0)) {
         vec4 fwdOriginH = query.viewInverse * vec4(0, 0, 0, 1);
         vec4 fwdDirH = query.viewInverse * vec4(0, 0, -1, 0);
+
+        vec3 fwdLensOrigin, fwdLensDir, fwdDebugDirLensLocal;
+        evalLensRay(fwdOriginH.xyz, normalize(fwdDirH.xyz), fwdLensOrigin, fwdLensDir, fwdDebugDirLensLocal);
+
+        goldenResult.pad0 = fwdDebugDirLensLocal.x; // TEMP DEBUG -- should be ~0.0 for a straight-forward ray
+        goldenResult.pad1 = fwdDebugDirLensLocal.z; // TEMP DEBUG -- should be ~0.0 for a straight-forward ray
+
         vec3 fwdHitPos, fwdHitNormal, fwdHitAlbedo;
-        bool fwdHit = marchRay(fwdOriginH.xyz, normalize(fwdDirH.xyz), fwdHitPos, fwdHitNormal, fwdHitAlbedo);
+        bool fwdHit = marchRay(fwdLensOrigin, fwdLensDir, fwdHitPos, fwdHitNormal, fwdHitAlbedo);
 
         if (fwdHit) {
             result.hitPosition = vec4(fwdHitPos, 1.0);
@@ -125,5 +333,18 @@ void main()
         } else {
             result.hit = 0;
         }
+
+        float g_xo, g_zo, g_dirxo, g_diryo, g_dirzo, g_intensity;
+        evalLensDirect(query.goldenTestX, query.goldenTestZ,
+                        query.goldenTestDirX, query.goldenTestDirY, query.goldenTestDirZ,
+                        query.goldenTestWavelength,
+                        g_xo, g_zo, g_dirxo, g_diryo, g_dirzo, g_intensity);
+
+        goldenResult.x_o = g_xo;
+        goldenResult.z_o = g_zo;
+        goldenResult.dirx_o = g_dirxo;
+        goldenResult.diry_o = g_diryo;
+        goldenResult.dirz_o = g_dirzo;
+        goldenResult.intensity = g_intensity;
     }
 }

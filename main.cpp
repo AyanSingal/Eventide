@@ -15,10 +15,11 @@
 #include "RayTracingPipeline.h"
 #include "GBufferPipeline.h"
 #include "SSRQueryPipeline.h"
+#include "LensModel.h"
 #include "imgui.h"
 
-const uint32_t WIDTH = 800;
-const uint32_t HEIGHT = 600;
+const uint32_t WIDTH = 1600;
+const uint32_t HEIGHT = 1200;
 
 const std::string MODEL_PATH = "models/FlightHelmet/FlightHelmet.gltf";
 
@@ -47,6 +48,7 @@ private:
     RayTracingPipeline rtPipeline;
     GBufferPipeline gbufferPipeline;
     SSRQueryPipeline ssrQueryPipeline;
+    LensModel lensModel;
     float lastMouseX = 400.0f; // center of window
     float lastMouseY = 300.0f;
     bool firstMouse = true;
@@ -61,7 +63,7 @@ private:
         glfwInit();
 
         glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
-
+        glfwWindowHint(GLFW_RESIZABLE, GLFW_FALSE);
         window = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan", nullptr, nullptr);
         glfwSetWindowUserPointer(window, this);
         glfwSetCursorPosCallback(window, mouseCallback);
@@ -77,7 +79,8 @@ private:
         rayTracingAS.init(context, resourceManager, commandManager, model, modelMatrices);
         rtPipeline.init(context, resourceManager, commandManager, rayTracingAS, swapchain, model, camera);
         gbufferPipeline.init(context, resourceManager, commandManager, swapchain, model, camera, modelMatrices);
-        ssrQueryPipeline.init(context, resourceManager, commandManager, swapchain, gbufferPipeline, camera);
+        lensModel.init(context, resourceManager, "C:\\Eventide\\lens\\raynet_backward_4096_portable.bin");
+        ssrQueryPipeline.init(context, resourceManager, commandManager, swapchain, gbufferPipeline, camera, lensModel);
         renderer.init(context, resourceManager, commandManager, swapchain, model, camera, rtPipeline, gbufferPipeline, ssrQueryPipeline, modelMatrices, window);
     }
 
@@ -102,6 +105,7 @@ private:
     {
         rtPipeline.cleanup();
         gbufferPipeline.cleanup();
+        lensModel.cleanup();
         ssrQueryPipeline.cleanup();
         rayTracingAS.cleanup();
         swapchain.cleanupSwapChain();

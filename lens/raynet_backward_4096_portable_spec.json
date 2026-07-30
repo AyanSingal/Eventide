@@ -1,0 +1,68 @@
+{
+  "description": "RayNet6_32_tanh_Portable, backward 24mm full-transmittance path",
+  "layer_shapes_out_in": [
+    [
+      32,
+      5
+    ],
+    [
+      32,
+      32
+    ],
+    [
+      32,
+      32
+    ],
+    [
+      32,
+      32
+    ],
+    [
+      32,
+      32
+    ],
+    [
+      6,
+      32
+    ]
+  ],
+  "activation": "tanh after every layer except the last",
+  "bias": false,
+  "weight_layout": "row-major float32, shape [out_features, in_features] per layer, y = W @ x",
+  "input_order": [
+    "z_i (normalized)",
+    "dirx_i",
+    "diry_i",
+    "dirz_i",
+    "wavelength (normalized)"
+  ],
+  "output_order": [
+    "x_o_raw",
+    "z_o_raw",
+    "dirx_o_raw",
+    "diry_o_raw",
+    "dirz_o_raw",
+    "intensity_raw"
+  ],
+  "output_postprocess": "direction (dirx_o,diry_o,dirz_o) must be re-normalized to unit length after the last layer -- it is NOT already unit from the raw network output",
+  "normalization": {
+    "POSITION_SCALE_I": 11.8579998,
+    "POSITION_SCALE_O": 11.8579998,
+    "WAVELENGTH_MIN": 357.3471984863281,
+    "WAVELENGTH_MAX": 795.9625854492188,
+    "INTENSITY_MIN": 0.4363940954208374,
+    "INTENSITY_MAX": 0.5152989625930786
+  },
+  "normalize_formula": {
+    "z_i_norm": "z_i / POSITION_SCALE_I",
+    "wavelength_norm": "(wavelength - WAVELENGTH_MIN) / (WAVELENGTH_MAX - WAVELENGTH_MIN)",
+    "x_o": "x_o_raw * POSITION_SCALE_O",
+    "z_o": "z_o_raw * POSITION_SCALE_O",
+    "intensity": "intensity_raw * (INTENSITY_MAX - INTENSITY_MIN) + INTENSITY_MIN"
+  },
+  "required_preprocessing_before_calling_this_network": [
+    "rotate entry (position,direction) about the optical axis so entry position lands on x=0 (see canonicalize.py:canonicalize_input)",
+    "if the rotated dirx_i is still negative, mirror-fold it (flip sign) before calling the network",
+    "after calling the network, undo the mirror fold on dirx_o/x_o, then undo the rotation on (x_o,z_o) and (dirx_o,dirz_o)"
+  ]
+}

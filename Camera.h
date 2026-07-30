@@ -14,12 +14,13 @@ public:
 
     glm::mat4 getViewMatrix();
     glm::mat4 getProjectionMatrix(float aspectRatio);
+    float getFov() const;
+    void setFov(float newFov);
 
     void processKeyboard(GLFWwindow *window, float deltaTime);
     void processMouse(float xOffset, float yOffset);
 
     glm::vec3 position;
-
 private:
     glm::vec3 front;
     glm::vec3 up;

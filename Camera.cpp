@@ -5,7 +5,7 @@ Camera::Camera()
       up(0.0f, 1.0f, 0.0f),
       yaw(-135.0f),
       pitch(-35.0f),
-      fov(78.0f),
+      fov(70.0f),
       speed(2.5f),
       sensitivity(0.1f),
       nearPlane(0.1f),
@@ -33,6 +33,16 @@ glm::mat4 Camera::getProjectionMatrix(float aspectRatio)
     glm::mat4 proj = glm::perspective(glm::radians(fov), aspectRatio, nearPlane, farPlane);
     proj[1][1] *= -1;  
     return proj;
+}
+
+float Camera::getFov() const
+{
+    return fov;
+}
+
+void Camera::setFov(float newFov)
+{
+    fov = newFov;
 }
 
 void Camera::processKeyboard(GLFWwindow* window, float deltaTime)

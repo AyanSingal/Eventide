@@ -13,6 +13,7 @@ void GBufferPipeline::init(VulkanContext& context, ResourceManager& resourceMana
 
     createGBufferImages();
     createSampler();
+    createAlbedoSampler();
     createDescriptorSetLayout();
     createPipeline();
     createUniformBuffer();
@@ -73,6 +74,27 @@ void GBufferPipeline::createSampler()
     if(vkCreateSampler(context->device, &samplerInfo, nullptr, &gbufferSampler) != VK_SUCCESS)
     {
         throw std::runtime_error("failed to create gbuffer sampler!");
+    }
+}
+
+void GBufferPipeline::createAlbedoSampler()
+{
+    VkSamplerCreateInfo samplerInfo{};
+    samplerInfo.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    samplerInfo.magFilter = VK_FILTER_LINEAR;
+    samplerInfo.minFilter = VK_FILTER_LINEAR;
+    samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    samplerInfo.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    samplerInfo.addressModeV = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    samplerInfo.addressModeW = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE;
+    samplerInfo.anisotropyEnable = VK_FALSE;
+    samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
+    samplerInfo.unnormalizedCoordinates = VK_FALSE;
+    samplerInfo.compareEnable = VK_FALSE;
+
+    if(vkCreateSampler(context->device, &samplerInfo, nullptr, &albedoLinearSampler) != VK_SUCCESS)
+    {
+        throw std::runtime_error("failed to create gbuffer albedo sampler!");
     }
 }
 
@@ -477,6 +499,7 @@ void GBufferPipeline::recordCommandBuffer(VkCommandBuffer commandBuffer)
 void GBufferPipeline::cleanup()
 {
     vkDestroySampler(context->device, gbufferSampler, nullptr);
+    vkDestroySampler(context->device, albedoLinearSampler, nullptr);
 
     vkDestroyImageView(context->device, positionImageView, nullptr);
     vkDestroyImage(context->device, positionImage, nullptr);

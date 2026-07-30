@@ -30,6 +30,7 @@ public:
     VkImageView albedoImageView;
     VkImageView depthImageView;
     VkSampler gbufferSampler;
+    VkSampler albedoLinearSampler;
 
     const VkFormat positionFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
     const VkFormat normalFormat = VK_FORMAT_R16G16B16A16_SFLOAT;
@@ -68,6 +69,7 @@ private:
 
     void createGBufferImages();
     void createSampler();
+    void createAlbedoSampler();
     void createDescriptorSetLayout();
     void createPipeline();
     void createUniformBuffer();

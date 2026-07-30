@@ -53,6 +53,7 @@ add_executable(${PROJECT_NAME}
     RayTracingPipeline.cpp
     GBufferPipeline.cpp
     SSRQueryPipeline.cpp
+    LensModel.cpp
     ${IMGUI_DIR}/imgui.cpp
     ${IMGUI_DIR}/imgui_draw.cpp
     ${IMGUI_DIR}/imgui_tables.cpp

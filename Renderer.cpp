@@ -653,6 +653,9 @@ void Renderer::drawFrame()
     ImGui_ImplVulkan_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
+    ImGui::Begin("SSR Reconstruction");
+    ImGui::Image(ssrOutputDebugTexture, ImVec2((float)swapchain->swapChainExtent.width, (float)swapchain->swapChainExtent.height));
+    ImGui::End();
     ImGui::Begin("Debug");
     ImGui::Text("Camera Position: (%.2f, %.2f, %.2f)",
                 camera->position.x, camera->position.y, camera->position.z);
@@ -684,8 +687,22 @@ void Renderer::drawFrame()
     }
 
     ImGui::Separator();
-    ImGui::Text("SSR Reconstructed View (full-screen, straight per-pixel rays)");
-    ImGui::Image(ssrOutputDebugTexture, ImVec2(320, 240));
+    ImGui::Text("Golden Test Input (lens-local frame)");
+    static float gtX = 0.0f, gtZ = 0.0f, gtDirX = 0.0f, gtDirY = 1.0f, gtDirZ = 0.0f, gtWavelength = 550.0f;
+    ImGui::InputFloat("x_i", &gtX);
+    ImGui::InputFloat("z_i", &gtZ);
+    ImGui::InputFloat("dirx_i", &gtDirX);
+    ImGui::InputFloat("diry_i", &gtDirY);
+    ImGui::InputFloat("dirz_i", &gtDirZ);
+    ImGui::InputFloat("wavelength (nm)", &gtWavelength);
+    ssrQueryPipeline->setGoldenTestInput(gtX, gtZ, gtDirX, gtDirY, gtDirZ, gtWavelength);
+
+    GoldenTestResult gtResult = ssrQueryPipeline->getGoldenTestResult();
+    ImGui::Text("Shader Output:");
+    ImGui::Text("x_o=%.5f  z_o=%.5f", gtResult.x_o, gtResult.z_o);
+    ImGui::Text("dirx_o=%.5f  diry_o=%.5f  dirz_o=%.5f", gtResult.dirx_o, gtResult.diry_o, gtResult.dirz_o);
+    ImGui::Text("intensity=%.5f", gtResult.intensity);
+    ImGui::Text("[debug] fwd ray dirLensLocal.x=%.5f  .z=%.5f (expect ~0,~0)", gtResult.pad0, gtResult.pad1);
 
     ImGui::End();
     ImGui::Render();

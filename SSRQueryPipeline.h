@@ -8,6 +8,7 @@
 #include "GBufferPipeline.h"
 #include "Camera.h"
 #include "ShaderUtils.h"
+#include "LensModel.h"
 
 struct SSRQueryUBO {
     glm::mat4 view;
@@ -18,6 +19,17 @@ struct SSRQueryUBO {
     float stepSize;
     int imageWidth;
     int imageHeight;
+    glm::vec2 apertureOffset;
+    float handoffPlaneDistance;
+    float testWavelengthNm;
+    float goldenTestX;
+    float goldenTestZ;
+    float goldenTestDirX;
+    float goldenTestDirY;
+    float goldenTestDirZ;
+    float goldenTestWavelength;
+    float pad2;
+    float pad3;
 };
 
 
@@ -31,10 +43,21 @@ struct SSRQueryResult {
     int pad2;
 };
 
+struct GoldenTestResult {
+    float x_o;
+    float z_o;
+    float dirx_o;
+    float diry_o;
+    float dirz_o;
+    float intensity;
+    float pad0;
+    float pad1;
+};
+
 class SSRQueryPipeline {
 public:
     void init(VulkanContext& context, ResourceManager& resourceManager, CommandManager& commandManager,
-              VulkanSwapchain& swapchain, GBufferPipeline& gbufferPipeline, Camera& camera);
+              VulkanSwapchain& swapchain, GBufferPipeline& gbufferPipeline, Camera& camera, LensModel& lensModel);
     void updateQuery();
     void recordCommandBuffer(VkCommandBuffer commandBuffer);
     SSRQueryResult getResult();
@@ -43,6 +66,9 @@ public:
     VkImageView ssrOutputImageView;
     VkSampler ssrOutputSampler;
 
+    void setGoldenTestInput(float x, float z, float dirX, float dirY, float dirZ, float wavelength);
+    GoldenTestResult getGoldenTestResult();
+
 private:
     VulkanContext* context = nullptr;
     ResourceManager* resourceManager = nullptr;
@@ -50,12 +76,17 @@ private:
     VulkanSwapchain* swapchain = nullptr;
     GBufferPipeline* gbufferPipeline = nullptr;
     Camera* camera = nullptr;
+    LensModel* lensModel = nullptr;
 
     VkDescriptorSetLayout gbufferSetLayout;
     VkDescriptorSetLayout querySetLayout;
+    VkDescriptorSetLayout lensSetLayout;
+
     VkDescriptorPool descriptorPool;
+    
     VkDescriptorSet gbufferDescriptorSet;
     VkDescriptorSet queryDescriptorSet;
+    VkDescriptorSet lensDescriptorSet;
 
     VkPipelineLayout pipelineLayout;
     VkPipeline pipeline;
@@ -70,6 +101,17 @@ private:
 
     VkImage ssrOutputImage;
     VkDeviceMemory ssrOutputImageMemory;
+
+    VkBuffer goldenTestResultBuffer;
+    VkDeviceMemory goldenTestResultMemory;
+    void* goldenTestResultMapped;
+
+    float goldenTestX = 0.0f;
+    float goldenTestZ = 0.0f;
+    float goldenTestDirX = 0.0f;
+    float goldenTestDirY = 1.0f;
+    float goldenTestDirZ = 0.0f;
+    float goldenTestWavelength = 550.0f;
 
     void createDescriptorSetLayouts();
     void createPipeline();
