@@ -37,6 +37,7 @@ void Renderer::setupImgui()
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
     ImGui::StyleColorsDark();
+    ImGui::GetIO().FontGlobalScale = 1.4f;
 
     ImGui_ImplGlfw_InitForVulkan(window, true);
 
@@ -654,7 +655,8 @@ void Renderer::drawFrame()
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
     ImGui::Begin("SSR Reconstruction");
-    ImGui::Image(ssrOutputDebugTexture, ImVec2((float)swapchain->swapChainExtent.width, (float)swapchain->swapChainExtent.height));
+    const float ssrDisplayScale = 0.75f;
+    ImGui::Image(ssrOutputDebugTexture, ImVec2(swapchain->swapChainExtent.width * ssrDisplayScale, swapchain->swapChainExtent.height * ssrDisplayScale));
     ImGui::End();
     ImGui::Begin("Debug");
     ImGui::Text("Camera Position: (%.2f, %.2f, %.2f)",
@@ -685,6 +687,20 @@ void Renderer::drawFrame()
         ImGui::Text("Hit Normal: (%.2f, %.2f, %.2f)", rtResult.hitNormal.x, rtResult.hitNormal.y, rtResult.hitNormal.z);
         ImGui::Text("Hit Albedo: (%.2f, %.2f, %.2f)", rtResult.hitAlbedo.x, rtResult.hitAlbedo.y, rtResult.hitAlbedo.z);
     }
+
+    ImGui::Separator();
+    ImGui::Text("Aperture Offset (entry point on lens, lens-local mm)");
+    ImGui::TextWrapped("At (0,0) every ray is a chief ray through the lens center - the canonicalization's rotation angle is degenerate there. Move off-axis to see whether the fold seam detaches from the image centerline.");
+    static float apX = 0.0f, apZ = 0.0f;
+    ImGui::SliderFloat("aperture x_i", &apX, -10.0f, 10.0f);
+    ImGui::SliderFloat("aperture z_i", &apZ, -10.0f, 10.0f);
+    ssrQueryPipeline->setApertureOffset(apX, apZ);
+
+    static bool visFold = false;
+    static float foldEps = 0.03f;
+    ImGui::Checkbox("Visualize fold boundary", &visFold);
+    ImGui::SliderFloat("seam band width", &foldEps, 0.001f, 0.2f);
+    ssrQueryPipeline->setVisualizeFold(visFold, foldEps);
 
     ImGui::Separator();
     ImGui::Text("Golden Test Input (lens-local frame)");

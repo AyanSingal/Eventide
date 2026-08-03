@@ -1,0 +1,98 @@
+{
+  "surfaces": [
+    {
+      "radius_of_curvature": 35.98738,
+      "aperture_radius": 11.858,
+      "thickness": 1.21638,
+      "material": "PMMA",
+      "conic_constant": 0
+    },
+    {
+      "radius_of_curvature": 11.69718,
+      "aperture_radius": 8.998,
+      "thickness": 9.9957,
+      "material": "Air",
+      "conic_constant": 0
+    },
+    {
+      "radius_of_curvature": 13.08714,
+      "aperture_radius": 6.182,
+      "thickness": 5.12622,
+      "material": "GlassLASF9",
+      "conic_constant": 0
+    },
+    {
+      "radius_of_curvature": -22.63294,
+      "aperture_radius": 4.906,
+      "thickness": 1.76924,
+      "material": "GlassSF5",
+      "conic_constant": 0
+    },
+    {
+      "radius_of_curvature": 71.05802,
+      "aperture_radius": 4.576,
+      "thickness": 0.8184,
+      "material": "Air",
+      "conic_constant": 0
+    },
+    {
+      "radius_of_curvature": 11.858,
+      "aperture_radius": 3.5,
+      "thickness": 2.27766,
+      "material": "STOPPER",
+      "conic_constant": 0
+    },
+    {
+      "radius_of_curvature": -9.58584,
+      "aperture_radius": 4.092,
+      "thickness": 2.43254,
+      "material": "GlassSF5",
+      "conic_constant": 0
+    },
+    {
+      "radius_of_curvature": -11.28864,
+      "aperture_radius": 4.576,
+      "thickness": 0.11506,
+      "material": "Air",
+      "conic_constant": 0
+    },
+    {
+      "radius_of_curvature": -166.7765,
+      "aperture_radius": 5.324,
+      "thickness": 3.09606,
+      "material": "N-SF11",
+      "conic_constant": 0
+    },
+    {
+      "radius_of_curvature": -7.5911,
+      "aperture_radius": 5.72,
+      "thickness": 1.32682,
+      "material": "GlassLASF31",
+      "conic_constant": 0
+    },
+    {
+      "radius_of_curvature": -16.7662,
+      "aperture_radius": 6.138,
+      "thickness": 3.98068,
+      "material": "Air",
+      "conic_constant": 0
+    },
+    {
+      "radius_of_curvature": -7.70286,
+      "aperture_radius": 6.71,
+      "thickness": 1.21638,
+      "material": "GlassSF5",
+      "conic_constant": 0
+    },
+    {
+      "radius_of_curvature": -11.97328,
+      "aperture_radius": 8.998,
+      "thickness": 9.0,
+      "material": "Air",
+      "conic_constant": 0
+    }
+  ],
+  "cmos_width": 18,
+  "inftym_focus": 8.0,
+  "0.1m_focus": 11.0
+}

@@ -18,8 +18,8 @@
 #include "LensModel.h"
 #include "imgui.h"
 
-const uint32_t WIDTH = 1600;
-const uint32_t HEIGHT = 1200;
+const uint32_t WIDTH = 2200;
+const uint32_t HEIGHT = 1400;
 
 const std::string MODEL_PATH = "models/FlightHelmet/FlightHelmet.gltf";
 

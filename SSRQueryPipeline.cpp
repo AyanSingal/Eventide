@@ -343,7 +343,7 @@ void SSRQueryPipeline::updateQuery()
     ubo.stepSize = 0.05f;
     ubo.imageWidth = swapchain->swapChainExtent.width;
     ubo.imageHeight = swapchain->swapChainExtent.height;
-    ubo.apertureOffset = glm::vec2(0.0f, 0.0f);
+    ubo.apertureOffset = glm::vec2(apertureOffsetX, apertureOffsetZ);
     ubo.handoffPlaneDistance = 13.17f / 1000.0f;
     ubo.testWavelengthNm = 550.0f;
 
@@ -354,7 +354,22 @@ void SSRQueryPipeline::updateQuery()
     ubo.goldenTestDirZ = goldenTestDirZ;
     ubo.goldenTestWavelength = goldenTestWavelength;
 
+    ubo.visualizeFold = visualizeFold ? 1 : 0;
+    ubo.foldEpsilon = foldEpsilon;
+
     memcpy(queryUboMapped, &ubo, sizeof(ubo));
+}
+
+void SSRQueryPipeline::setApertureOffset(float x, float z)
+{
+    apertureOffsetX = x;
+    apertureOffsetZ = z;
+}
+
+void SSRQueryPipeline::setVisualizeFold(bool enabled, float epsilon)
+{
+    visualizeFold = enabled;
+    foldEpsilon = epsilon;
 }
 
 void SSRQueryPipeline::setGoldenTestInput(float x, float z, float dirX, float dirY, float dirZ, float wavelength)

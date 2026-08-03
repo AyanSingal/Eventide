@@ -28,8 +28,8 @@ struct SSRQueryUBO {
     float goldenTestDirY;
     float goldenTestDirZ;
     float goldenTestWavelength;
-    float pad2;
-    float pad3;
+    int visualizeFold;
+    float foldEpsilon;
 };
 
 
@@ -68,6 +68,9 @@ public:
 
     void setGoldenTestInput(float x, float z, float dirX, float dirY, float dirZ, float wavelength);
     GoldenTestResult getGoldenTestResult();
+
+    void setApertureOffset(float x, float z);
+    void setVisualizeFold(bool enabled, float epsilon);
 
 private:
     VulkanContext* context = nullptr;
@@ -112,6 +115,11 @@ private:
     float goldenTestDirY = 1.0f;
     float goldenTestDirZ = 0.0f;
     float goldenTestWavelength = 550.0f;
+
+    float apertureOffsetX = 0.0f;
+    float apertureOffsetZ = 0.0f;
+    bool visualizeFold = false;
+    float foldEpsilon = 0.03f;
 
     void createDescriptorSetLayouts();
     void createPipeline();
