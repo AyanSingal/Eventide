@@ -345,6 +345,7 @@ void SSRQueryPipeline::updateQuery()
     ubo.imageHeight = swapchain->swapChainExtent.height;
     ubo.apertureOffset = glm::vec2(apertureOffsetX, apertureOffsetZ);
     ubo.handoffPlaneDistance = 13.17f / 1000.0f;
+    ubo.sensorPlaneDistance = sensorPlaneDistance;
     ubo.testWavelengthNm = 550.0f;
 
     ubo.goldenTestX = goldenTestX;
@@ -364,6 +365,11 @@ void SSRQueryPipeline::setApertureOffset(float x, float z)
 {
     apertureOffsetX = x;
     apertureOffsetZ = z;
+}
+
+void SSRQueryPipeline::setSensorPlaneDistance(float distance)
+{
+    sensorPlaneDistance = distance;
 }
 
 void SSRQueryPipeline::setVisualizeFold(bool enabled, float epsilon)

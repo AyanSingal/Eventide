@@ -32,7 +32,7 @@ set(IMGUI_DIR "${LIB_DIR}/imgui")
 
 set(GLFW_INCLUDE_DIR "${LIB_DIR}/glfw-3.4.bin.WIN64/include")
 set(GLFW_LIB         "${LIB_DIR}/glfw-3.4.bin.WIN64/lib-vc2022/glfw3.lib")
-set(GLM_INCLUDE_DIR  "${LIB_DIR}/glm")
+set(GLM_INCLUDE_DIR  "${LIB_DIR}/glm-1.0.1")
 set(STB_INCLUDE_DIR  "${LIB_DIR}/stb-master")
 set(TINYGLTF_INCLUDE_DIR "${LIB_DIR}/tinygltf")
 

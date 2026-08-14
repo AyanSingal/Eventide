@@ -18,6 +18,7 @@ layout(set = 1, binding = 0) uniform QueryUBO {
     int imageHeight;
     vec2 apertureOffset;
     float handoffPlaneDistance;
+    float sensorPlaneDistance;
     float testWavelengthNm;
     float goldenTestX;
     float goldenTestZ;
@@ -175,13 +176,21 @@ vec3 lensLocalToView(vec3 l) { return vec3(l.x, l.z, -l.y); }
 void evalLensRay(vec3 originWorld, vec3 dirWorld, out vec3 exitOriginWorld, out vec3 exitDirWorld, out vec3 debugDirLensLocal,
                   out bool wasMirroredOut, out float dirxCOut)
 {
-    vec3 dirView = mat3(query.view) * dirWorld;
-    vec3 dirLensLocal = viewToLensLocal(dirView);
+    vec3 pinholeDirView = mat3(query.view) * dirWorld;
+    vec3 pinholeDirLensLocal = viewToLensLocal(pinholeDirView);
+
+    float t = -query.sensorPlaneDistance / pinholeDirLensLocal.y;
+    vec3 p = t * pinholeDirLensLocal;
+
+    vec3 a = vec3(query.apertureOffset.x, 0.0, query.apertureOffset.y);
+
+    vec3 dirLensLocal = normalize(a - p);
+
     debugDirLensLocal = dirLensLocal;
 
     float r, dirx_c, diry_c, dirz_c, rotAngle;
     bool wasMirrored;
-    canonicalizeInput(query.apertureOffset.x, query.apertureOffset.y,
+    canonicalizeInput(a.x, a.z,
                        dirLensLocal.x, dirLensLocal.y, dirLensLocal.z,
                        r, dirx_c, diry_c, dirz_c, rotAngle, wasMirrored);
     wasMirroredOut = wasMirrored;
@@ -338,8 +347,8 @@ void main()
         float fwdDirxC;
         evalLensRay(fwdOriginH.xyz, normalize(fwdDirH.xyz), fwdLensOrigin, fwdLensDir, fwdDebugDirLensLocal, fwdWasMirrored, fwdDirxC);
 
-        goldenResult.pad0 = fwdDebugDirLensLocal.x; // TEMP DEBUG -- should be ~0.0 for a straight-forward ray
-        goldenResult.pad1 = fwdDebugDirLensLocal.z; // TEMP DEBUG -- should be ~0.0 for a straight-forward ray
+        goldenResult.pad0 = fwdDebugDirLensLocal.x; // TEMP DEBUG -- ~0 only when apertureOffset=(0,0); nonzero is expected once aperture offset is nonzero
+        goldenResult.pad1 = fwdDebugDirLensLocal.z; // TEMP DEBUG -- ~0 only when apertureOffset=(0,0); nonzero is expected once aperture offset is nonzero
 
         vec3 fwdHitPos, fwdHitNormal, fwdHitAlbedo;
         bool fwdHit = marchRay(fwdLensOrigin, fwdLensDir, fwdHitPos, fwdHitNormal, fwdHitAlbedo);

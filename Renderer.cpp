@@ -696,6 +696,11 @@ void Renderer::drawFrame()
     ImGui::SliderFloat("aperture z_i", &apZ, -10.0f, 10.0f);
     ssrQueryPipeline->setApertureOffset(apX, apZ);
 
+    static float sensorDist = 8.0f;
+    ImGui::SliderFloat("sensor plane distance (mm)", &sensorDist, 0.0f, 20.0f);
+    ImGui::TextWrapped("Distance from lens center to the virtual sensor. 8.0 = infinity focus, 11.0 = 0.1m focus (per lens/24mm.json). This is the manual-focus knob.");
+    ssrQueryPipeline->setSensorPlaneDistance(sensorDist);
+
     static bool visFold = false;
     static float foldEps = 0.03f;
     ImGui::Checkbox("Visualize fold boundary", &visFold);

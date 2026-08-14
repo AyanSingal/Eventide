@@ -21,6 +21,7 @@ struct SSRQueryUBO {
     int imageHeight;
     glm::vec2 apertureOffset;
     float handoffPlaneDistance;
+    float sensorPlaneDistance;
     float testWavelengthNm;
     float goldenTestX;
     float goldenTestZ;
@@ -70,6 +71,7 @@ public:
     GoldenTestResult getGoldenTestResult();
 
     void setApertureOffset(float x, float z);
+    void setSensorPlaneDistance(float distance);
     void setVisualizeFold(bool enabled, float epsilon);
 
 private:
@@ -118,6 +120,7 @@ private:
 
     float apertureOffsetX = 0.0f;
     float apertureOffsetZ = 0.0f;
+    float sensorPlaneDistance = 8.0f;
     bool visualizeFold = false;
     float foldEpsilon = 0.03f;
 
