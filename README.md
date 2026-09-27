@@ -1,34 +1,57 @@
 # Eventide
 
-A Vulkan 1.2 renderer built from scratch in C++. Renders a textured glTF model through two independent paths: a traditional rasterizer and a hardware-accelerated ray tracer built on Vulkan's ray tracing extensions.
+A Vulkan 1.2 research renderer, written from scratch in C++, for real-time rendering through realistic camera lenses. Instead of a pinhole camera, rays are bent through a real multi-element lens using a precomputed neural lens model. This is a real-time take on [*Precomputed Lens Transport Maps*](https://arxiv.org/abs/2605.04017). A hardware ray tracer renders the same scene as a reference.
+
+<!-- Screenshot: lens view of Sponza with depth of field -->
+
+## Lens camera
+
+Each frame:
+
+1. **G-buffer pass.** The scene is rasterized into position, normal, albedo, and depth images.
+2. **Lens pass (compute).** For every pixel, a point on the lens aperture is sampled. The lens model maps the ray through the full lens, a 24mm prescription in [`lens/24mm.json`](lens/24mm.json). The model is a small tanh MLP evaluated directly in the shader. The outgoing ray is then marched against the G-buffer to find what it hits.
+3. **Accumulation.** Each frame's aperture sample is averaged into a floating-point image. Over many frames this integrates over the aperture, producing depth of field and the lens's own aberrations. The average restarts when the camera or a lens setting changes.
+
+Controls in the **Lens** panel:
+
+- **Focus.** The sensor distance behind the lens.
+- **Aperture.** How much of the lens opening is sampled. Like an f-stop: 0 behaves like a pinhole.
+- **Pupil center.** Which part of the aperture is sampled.
+- **Accumulated** (in the Lens View window) toggles between the running average and a single sample.
+
+Current limitations:
+
+- The lens pass only sees what the G-buffer contains. Blurred foreground edges can't reveal geometry hidden behind them.
+- A single wavelength (550nm) is used, and the model's intensity output is not yet applied.
+- The lens view is shown in an ImGui window rather than as the main frame.
 
 ## Features
 
 ### Core
 - **Vulkan 1.2** with `VK_KHR_dynamic_rendering` (no render passes)
-- **Timeline semaphores** for frame-in-flight synchronization (replacing traditional fences)
+- **Timeline semaphores** for frame-in-flight synchronization
 - **Dedicated transfer queue** for asynchronous GPU uploads
-- **Modular architecture** with clear separation of concerns across well-defined modules
-
-### Rasterization path
-- **MSAA** with automatic resolve
-- **Mipmapped textures** generated via blit chain
 - **glTF 2.0 model loading** with per-material base color textures
-- **Per-material descriptor sets** (set 0 = per-frame UBO, set 1 = per-material texture)
-- **Push constants** for per-object model matrices
 - **FPS fly camera** with click-drag rotation and WASD movement
-- **ImGui debug UI** with camera position and frame timing
+- **ImGui UI** for lens controls, frame timing, and a lens-vs-ray-traced hit comparison
 
-### Ray tracing path (hardware accelerated)
+### Lens camera
+- **G-buffer pass** (world position, normal, albedo, depth)
+- **Compute lens pass** with the neural lens model evaluated per pixel; weights are loaded into a storage buffer
+- **Screen-space ray marching** with binary-search refinement
+- **Temporal accumulation** of aperture samples in an RGBA32F image, using a low-discrepancy (R2) sample sequence
+
+### Ray tracing (reference view)
 - **Acceleration structures** built from glTF geometry (one BLAS per sub-mesh, single TLAS)
 - **Ray tracing pipeline** with ray generation, closest-hit, and miss shaders
+- **Lambertian shading with shadow rays**
 - **Shader Binding Table** with properly aligned shader group regions
-- **Storage image output** copied to the swapchain for presentation
-- **Per-material texture sampling** in the closest-hit shader via barycentric UV interpolation
 - **Runtime descriptor arrays** indexing per-sub-mesh vertex/index buffers and per-material textures
 
-
-<img width="483" height="510" alt="image" src="https://github.com/user-attachments/assets/3c64efe9-e636-41fd-87d0-d8b1c90b2dcd" />
+### Rasterization path (present, not currently displayed)
+- **MSAA** with automatic resolve
+- **Mipmapped textures** generated via blit chain
+- **Per-material descriptor sets** and **push constants** for model matrices
 
 ## Architecture
 
@@ -41,13 +64,18 @@ main.cpp (application entry, draw loop, scene-specific logic)
 |-- VulkanSwapchain     : Swapchain lifecycle, image views, MSAA/depth resources
 |-- VulkanTexture       : Texture creation, management, mipmaps
 |-- VulkanModel         : glTF model loading, per-sub-mesh buffers, per-material textures
+|-- Camera              : FPS fly camera, view/projection matrices
+|-- GBufferPipeline     : G-buffer rasterization pass
+|-- LensModel           : Loads the lens network weights and normalization constants
+|-- SSRQueryPipeline    : Lens compute pass: aperture sampling, network evaluation, screen-space march, accumulation
 |-- RayTracingAS        : BLAS/TLAS acceleration structure construction
 |-- RayTracingPipeline  : RT pipeline, shader binding table, storage image, RT descriptors
-|-- Renderer            : Graphics pipeline, descriptors, sync, draw loop orchestration
-|-- Camera              : FPS fly camera, view/projection matrices
+|-- Renderer            : Graphics pipeline, descriptors, sync, UI, draw loop orchestration
 ```
 
 Shared headers: `VulkanTypes.h` (queue/swapchain structs, validation and extension config), `Vertex.h` (vertex layout, UBO), `ShaderUtils.h` (shader file reading and module creation).
+
+Data: `lens/` holds the lens prescription and the network weights with their spec. `shaders/` holds the GLSL sources, which CMake compiles to SPIR-V.
 
 ## Building
 
@@ -63,7 +91,12 @@ Shared headers: `VulkanTypes.h` (queue/swapchain structs, validation and extensi
   - [stb](https://github.com/nothings/stb)
   - [tinygltf](https://github.com/syoyo/tinygltf)
   - [Dear ImGui](https://github.com/ocornut/imgui) (docking branch)
-- Optional test scene: [Sponza](https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/Sponza/glTF). Place the contents of its `glTF/` folder in `models/Sponza/`. It is CRYENGINE-licensed, so it is not included in this repository.
+
+### Test scene
+
+The default scene is [Sponza](https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/Sponza/glTF). It is CRYENGINE-licensed, so it is not included in this repository. Place the contents of its `glTF/` folder in `models/Sponza/` before running.
+
+To use the included FlightHelmet model instead, point `MODEL_PATH` in `main.cpp` at `models/FlightHelmet/FlightHelmet.gltf`. You may also need to adjust the model transform in `main.cpp` and the starting camera in `Camera.cpp`.
 
 ### Build
 
@@ -76,19 +109,26 @@ The executable, compiled shaders, models, and textures are output to `build/`.
 
 ## Roadmap
 
-**Phase 1: Foundation refactor (complete)**
-Breaking the monolith into clean modules with clear separation of concerns.
+**Done**
+- Modular Vulkan foundation, glTF loading, material system, ImGui UI
+- Hardware ray tracing with shading and shadow rays
+- Real-time neural lens camera with depth of field, focus, and aperture control
 
-**Phase 2: Renderer features (complete)**
-Scene abstraction, glTF loading, material system, ImGui debug UI, push constants, multiple descriptor sets.
+**Next**
+- Apply the lens model's intensity (Fresnel throughput) output
+- Spectral sampling for chromatic aberration
+- Present the lens view as the main frame
+- Performance work toward a real-time frame budget
+- Validation against ray-traced lens references
 
-**Phase 3: Toward path tracing (in progress)**
-Hardware ray tracing infrastructure is complete: acceleration structures, ray tracing pipeline, shader binding table, and textured output via ray casting. Remaining work moves from ray casting to true light transport:
-- Surface normals and basic direct lighting
-- Shadow rays (first secondary rays)
-- Monte Carlo path tracing with multiple bounces and sample accumulation
-- Research direction: neural importance sampling for light transport, beginning in non-Euclidean settings
+**Longer term**
+- Neural importance sampling for light transport, beginning in non-Euclidean settings
+
+## References
+
+- Yang Chen, Xiaochun Tong, Afet Abzar, Leo Hanxu, Matthew Avolio, Toshiya Hachisuka. *Precomputed Lens Transport Maps.* arXiv:2605.04017, 2026.
+- Lens prescription and data-collection reference: [noviorlu/cs888-public](https://github.com/noviorlu/cs888-public)
 
 ## License
 
-This is a personal learning project. No license specified.
+This is a personal research project. No license specified.
