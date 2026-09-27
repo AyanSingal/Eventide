@@ -185,7 +185,18 @@ void evalLensRay(vec3 originWorld, vec3 dirWorld, out vec3 exitOriginWorld, out 
     float t = -query.sensorPlaneDistance / pinholeDirLensLocal.y;
     vec3 p = t * pinholeDirLensLocal;
 
-    vec3 a = vec3(query.apertureOffset.x, 0.0, query.apertureOffset.y);
+    const float HOLE_DISTANCE_MM = 10.5;
+    const float HOLE_RADIUS_MM = 3.47;
+
+    float s = query.sensorPlaneDistance;
+    float centerScale = HOLE_DISTANCE_MM / (s + HOLE_DISTANCE_MM);
+
+    float circleRadius = HOLE_RADIUS_MM * s / (s + HOLE_DISTANCE_MM);
+
+    vec2 u = query.apertureOffset;
+
+    vec2 spot = centerScale * p.xz + circleRadius * u;
+    vec3 a = vec3(spot.x, 0.0, spot.y);
 
     vec3 dirLensLocal = normalize(a - p);
 

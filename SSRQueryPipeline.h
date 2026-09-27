@@ -133,7 +133,7 @@ private:
 
     float apertureOffsetX = 0.0f;
     float apertureOffsetZ = 0.0f;
-    float apertureSampleRadius = 11.858f;
+    float apertureSampleRadius = 0.8f;
     float sensorPlaneDistance = 9.0f;
     uint32_t accumSampleIndex = 0;
     

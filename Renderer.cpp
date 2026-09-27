@@ -655,92 +655,60 @@ void Renderer::drawFrame()
     ImGui_ImplVulkan_NewFrame();
     ImGui_ImplGlfw_NewFrame();
     ImGui::NewFrame();
-    ImGui::Begin("SSR Reconstruction");
-    const float ssrDisplayScale = 0.75f;
+        ImGui::Begin("Lens View");
     static bool showAccumulated = true;
-    ImGui::Checkbox("Show accumulated", &showAccumulated);
+    ImGui::Checkbox("Accumulated", &showAccumulated);
+    const float viewScale = 0.75f;
     ImGui::Image(showAccumulated ? ssrAccumDebugTexture : ssrOutputDebugTexture,
-    ImVec2(swapchain->swapChainExtent.width * ssrDisplayScale, swapchain->swapChainExtent.height * ssrDisplayScale));
+                 ImVec2(swapchain->swapChainExtent.width * viewScale, swapchain->swapChainExtent.height * viewScale));
     ImGui::End();
 
-    ImGui::Begin("Debug");
-    ImGui::Text("Camera Position: (%.2f, %.2f, %.2f)",
-                camera->position.x, camera->position.y, camera->position.z);
-    ImGui::Text("Frame Time: %.3f ms", 1000.0f / ImGui::GetIO().Framerate);
-    ImGui::Text("FPS: %.1f", ImGui::GetIO().Framerate);
+    ImGui::Begin("Lens");
+    ImGui::Text("%.2f ms (%.0f FPS)", 1000.0f / ImGui::GetIO().Framerate, ImGui::GetIO().Framerate);
+    ImGui::Text("Samples: %u", ssrQueryPipeline->getDebugLastAccumSampleIndex() + 1);
     ImGui::Separator();
-    ImGui::Text("G-Buffer Albedo");
-    ImGui::Image(albedoDebugTexture, ImVec2(320, 240));
-    ImGui::Text("G-Buffer Normal (world-space, negative components clip to black)");
-    ImGui::Image(normalDebugTexture, ImVec2(320, 240));
-    ImGui::Text("G-Buffer Position (raw world-space, likely washed out)");
-    ImGui::Image(positionDebugTexture, ImVec2(320, 240));
-    ImGui::Separator();
-    SSRQueryResult ssrResult = ssrQueryPipeline->getResult();
-    ImGui::Text("SSR Query Ray Hit: %s", ssrResult.hit ? "YES" : "NO");
-    if (ssrResult.hit)
-    {
-        ImGui::Text("Hit Position: (%.2f, %.2f, %.2f)", ssrResult.hitPosition.x, ssrResult.hitPosition.y, ssrResult.hitPosition.z);
-        ImGui::Text("Hit Normal: (%.2f, %.2f, %.2f)", ssrResult.hitNormal.x, ssrResult.hitNormal.y, ssrResult.hitNormal.z);
-        ImGui::Text("Hit Albedo: (%.2f, %.2f, %.2f)", ssrResult.hitAlbedo.x, ssrResult.hitAlbedo.y, ssrResult.hitAlbedo.z);
-    }
-        ImGui::Separator();
-    RTQueryResult rtResult = rtPipeline->getQueryResult();
-    ImGui::Text("RT Ground Truth Hit: %s", rtResult.hit ? "YES" : "NO");
-    if (rtResult.hit) {
-        ImGui::Text("Hit Position: (%.2f, %.2f, %.2f)", rtResult.hitPosition.x, rtResult.hitPosition.y, rtResult.hitPosition.z);
-        ImGui::Text("Hit Normal: (%.2f, %.2f, %.2f)", rtResult.hitNormal.x, rtResult.hitNormal.y, rtResult.hitNormal.z);
-        ImGui::Text("Hit Albedo: (%.2f, %.2f, %.2f)", rtResult.hitAlbedo.x, rtResult.hitAlbedo.y, rtResult.hitAlbedo.z);
-    }
-
-    ImGui::Separator();
-    ImGui::Text("Aperture Offset (entry point on lens, lens-local mm)");
-    ImGui::TextWrapped("At (0,0) every ray is a chief ray through the lens center - the canonicalization's rotation angle is degenerate there. Move off-axis to see whether the fold seam detaches from the image centerline.");
-    static float apX = 0.0f, apZ = 0.0f;
-    ImGui::SliderFloat("aperture x_i", &apX, -10.0f, 10.0f);
-    ImGui::SliderFloat("aperture z_i", &apZ, -10.0f, 10.0f);
-    ssrQueryPipeline->setApertureOffset(apX, apZ);
-
-    static float apertureRadius = 11.858f;   
-    ImGui::SliderFloat("aperture sample radius (mm)", &apertureRadius, 0.0f, 15.0f);
-    ImGui::TextWrapped("Radius of the disk accumulated over, centered on aperture x_i/z_i above. 0 = exactly today's single fixed-sample behavior.");
-    ssrQueryPipeline->setApertureSampleRadius(apertureRadius);
-
-    glm::vec2 debugOffset = ssrQueryPipeline->getDebugLastApertureOffset();
-    ImGui::Text("Actual sampled aperture point this frame: (%.4f, %.4f)  sample #%u",
-                debugOffset.x, debugOffset.y, ssrQueryPipeline->getDebugLastAccumSampleIndex());
-
 
     static float sensorDist = 9.0f;
-    ImGui::SliderFloat("sensor plane distance (mm)", &sensorDist, 0.0f, 20.0f);
-    ImGui::TextWrapped("Distance from lens center to the virtual sensor. 8.0 = infinity focus, 11.0 = 0.1m focus (per lens/24mm.json). This is the manual-focus knob.");
+    ImGui::SliderFloat("Focus (sensor mm)", &sensorDist, 5.0f, 15.0f);
     ssrQueryPipeline->setSensorPlaneDistance(sensorDist);
 
-    static bool visFold = false;
-    static float foldEps = 0.03f;
-    ImGui::Checkbox("Visualize fold boundary", &visFold);
-    ImGui::SliderFloat("seam band width", &foldEps, 0.001f, 0.2f);
-    ssrQueryPipeline->setVisualizeFold(visFold, foldEps);
+    static float apertureRadius = 0.8f;
+    ImGui::SliderFloat("Aperture", &apertureRadius, 0.0f, 1.0f);
+    ssrQueryPipeline->setApertureSampleRadius(apertureRadius);
+
+    static float apX = 0.0f, apZ = 0.0f;
+    ImGui::SliderFloat("Pupil center x", &apX, -1.0f, 1.0f);
+    ImGui::SliderFloat("Pupil center z", &apZ, -1.0f, 1.0f);
+    ssrQueryPipeline->setApertureOffset(apX, apZ);
 
     ImGui::Separator();
-    ImGui::Text("Golden Test Input (lens-local frame)");
-    static float gtX = 0.0f, gtZ = 0.0f, gtDirX = 0.0f, gtDirY = 1.0f, gtDirZ = 0.0f, gtWavelength = 550.0f;
-    ImGui::InputFloat("x_i", &gtX);
-    ImGui::InputFloat("z_i", &gtZ);
-    ImGui::InputFloat("dirx_i", &gtDirX);
-    ImGui::InputFloat("diry_i", &gtDirY);
-    ImGui::InputFloat("dirz_i", &gtDirZ);
-    ImGui::InputFloat("wavelength (nm)", &gtWavelength);
-    ssrQueryPipeline->setGoldenTestInput(gtX, gtZ, gtDirX, gtDirY, gtDirZ, gtWavelength);
+    SSRQueryResult ssrResult = ssrQueryPipeline->getResult();
+    RTQueryResult rtResult = rtPipeline->getQueryResult();
+    ImGui::Text("Center ray hit");
+    if (ssrResult.hit) ImGui::Text("  lens (%.2f, %.2f, %.2f)", ssrResult.hitPosition.x, ssrResult.hitPosition.y, ssrResult.hitPosition.z);
+    else               ImGui::Text("  lens miss");
+    if (rtResult.hit)  ImGui::Text("  RT   (%.2f, %.2f, %.2f)", rtResult.hitPosition.x, rtResult.hitPosition.y, rtResult.hitPosition.z);
+    else               ImGui::Text("  RT   miss");
 
-    GoldenTestResult gtResult = ssrQueryPipeline->getGoldenTestResult();
-    ImGui::Text("Shader Output:");
-    ImGui::Text("x_o=%.5f  z_o=%.5f", gtResult.x_o, gtResult.z_o);
-    ImGui::Text("dirx_o=%.5f  diry_o=%.5f  dirz_o=%.5f", gtResult.dirx_o, gtResult.diry_o, gtResult.dirz_o);
-    ImGui::Text("intensity=%.5f", gtResult.intensity);
-    ImGui::Text("[debug] fwd ray dirLensLocal.x=%.5f  .z=%.5f (expect ~0,~0)", gtResult.pad0, gtResult.pad1);
+    if (ImGui::CollapsingHeader("Network test (training frame, rays travel -y)"))
+    {
+        static float gtX = 0.0f, gtZ = 0.0f, gtDirX = 0.0f, gtDirY = -1.0f, gtDirZ = 0.0f, gtWavelength = 550.0f;
+        ImGui::InputFloat("x_i", &gtX);
+        ImGui::InputFloat("z_i", &gtZ);
+        ImGui::InputFloat("dirx_i", &gtDirX);
+        ImGui::InputFloat("diry_i", &gtDirY);
+        ImGui::InputFloat("dirz_i", &gtDirZ);
+        ImGui::InputFloat("wavelength (nm)", &gtWavelength);
+        ssrQueryPipeline->setGoldenTestInput(gtX, gtZ, gtDirX, gtDirY, gtDirZ, gtWavelength);
+
+        GoldenTestResult gt = ssrQueryPipeline->getGoldenTestResult();
+        ImGui::Text("pos (m)   %.5f, %.5f", gt.x_o, gt.z_o);
+        ImGui::Text("dir       %.5f, %.5f, %.5f", gt.dirx_o, gt.diry_o, gt.dirz_o);
+        ImGui::Text("intensity %.5f", gt.intensity);
+    }
 
     ImGui::End();
+
     ImGui::Render();
 
     VkCommandBufferBeginInfo beginInfo{};
