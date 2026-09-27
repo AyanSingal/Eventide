@@ -22,6 +22,7 @@ struct SSRQueryUBO {
     glm::vec2 apertureOffset;
     float handoffPlaneDistance;
     float sensorPlaneDistance;
+    int accumSampleIndex;
     float testWavelengthNm;
     float goldenTestX;
     float goldenTestZ;
@@ -66,13 +67,19 @@ public:
 
     VkImageView ssrOutputImageView;
     VkSampler ssrOutputSampler;
+    VkImageView ssrAccumImageView;
+    VkSampler ssrAccumSampler;
 
     void setGoldenTestInput(float x, float z, float dirX, float dirY, float dirZ, float wavelength);
     GoldenTestResult getGoldenTestResult();
 
     void setApertureOffset(float x, float z);
+    void setApertureSampleRadius(float radius);
     void setSensorPlaneDistance(float distance);
     void setVisualizeFold(bool enabled, float epsilon);
+
+    glm::vec2 getDebugLastApertureOffset() const { return debugLastApertureOffset; }
+    uint32_t getDebugLastAccumSampleIndex() const { return debugLastAccumSampleIndex; }
 
 private:
     VulkanContext* context = nullptr;
@@ -106,6 +113,12 @@ private:
 
     VkImage ssrOutputImage;
     VkDeviceMemory ssrOutputImageMemory;
+    VkImage ssrAccumImage;
+    VkDeviceMemory ssrAccumImageMemory;
+
+    glm::vec2 debugLastApertureOffset = glm::vec2(0.0f);
+    uint32_t debugLastAccumSampleIndex = 0;
+
 
     VkBuffer goldenTestResultBuffer;
     VkDeviceMemory goldenTestResultMemory;
@@ -120,7 +133,17 @@ private:
 
     float apertureOffsetX = 0.0f;
     float apertureOffsetZ = 0.0f;
-    float sensorPlaneDistance = 8.0f;
+    float apertureSampleRadius = 11.858f;
+    float sensorPlaneDistance = 9.0f;
+    uint32_t accumSampleIndex = 0;
+    
+    glm::mat4 lastAccumView = glm::mat4(0.0f);
+    float lastAccumSensorPlaneDistance = -1.0f;
+    float lastAccumApertureOffsetX = -1e9f;
+    float lastAccumApertureOffsetZ = -1e9f;
+    float lastAccumApertureSampleRadius = -1.0f;
+
+
     bool visualizeFold = false;
     float foldEpsilon = 0.03f;
 

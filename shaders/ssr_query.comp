@@ -19,6 +19,7 @@ layout(set = 1, binding = 0) uniform QueryUBO {
     vec2 apertureOffset;
     float handoffPlaneDistance;
     float sensorPlaneDistance;
+    int accumSampleIndex;
     float testWavelengthNm;
     float goldenTestX;
     float goldenTestZ;
@@ -56,6 +57,8 @@ layout(set = 1, binding = 1) buffer QueryResultBuffer {
 };
 
 layout(set = 1, binding = 2, rgba8) uniform image2D ssrOutputImage;
+
+layout(set = 1, binding = 4, rgba32f) uniform image2D ssrAccumImage;
 
 layout(set = 1, binding = 3) buffer GoldenTestResultBuffer {
     GoldenTestResult goldenResult;
@@ -188,10 +191,12 @@ void evalLensRay(vec3 originWorld, vec3 dirWorld, out vec3 exitOriginWorld, out 
 
     debugDirLensLocal = dirLensLocal;
 
+    vec3 dirTrain = vec3(dirLensLocal.x, -dirLensLocal.y, dirLensLocal.z);
+
     float r, dirx_c, diry_c, dirz_c, rotAngle;
     bool wasMirrored;
     canonicalizeInput(a.x, a.z,
-                       dirLensLocal.x, dirLensLocal.y, dirLensLocal.z,
+                       dirTrain.x, dirTrain.y, dirTrain.z,
                        r, dirx_c, diry_c, dirz_c, rotAngle, wasMirrored);
     wasMirroredOut = wasMirrored;
     dirxCOut = dirx_c;
@@ -211,7 +216,7 @@ void evalLensRay(vec3 originWorld, vec3 dirWorld, out vec3 exitOriginWorld, out 
                           x_o_w, z_o_w, dirx_o_w, diry_o_w, dirz_o_w);
 
     vec3 exitPosLensLocal = vec3(x_o_w, query.handoffPlaneDistance, z_o_w);
-    vec3 exitDirLensLocal = normalize(vec3(dirx_o_w, diry_o_w, dirz_o_w));
+    vec3 exitDirLensLocal = normalize(vec3(dirx_o_w, -diry_o_w, dirz_o_w));
 
     vec3 exitPosView = lensLocalToView(exitPosLensLocal);
     vec3 exitDirView = lensLocalToView(exitDirLensLocal);
@@ -337,6 +342,14 @@ void main()
     }
 
     imageStore(ssrOutputImage, pixel, vec4(outColor, 1.0));
+
+    if(query.accumSampleIndex == 0) {
+        imageStore(ssrAccumImage, pixel, vec4(outColor, 1.0));
+    } else {
+        vec4 prevAccum = imageLoad(ssrAccumImage, pixel);
+        float weight = 1.0 / float(query.accumSampleIndex + 1);
+        imageStore(ssrAccumImage, pixel, mix(prevAccum, vec4(outColor, 1.0), weight));
+    }
 
     if (pixel == ivec2(0, 0)) {
         vec4 fwdOriginH = query.viewInverse * vec4(0, 0, 0, 1);

@@ -64,6 +64,7 @@ void Renderer::setupImgui()
     normalDebugTexture = ImGui_ImplVulkan_AddTexture(gbufferPipeline->gbufferSampler, gbufferPipeline->normalImageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     albedoDebugTexture = ImGui_ImplVulkan_AddTexture(gbufferPipeline->gbufferSampler, gbufferPipeline->albedoImageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
     ssrOutputDebugTexture = ImGui_ImplVulkan_AddTexture(ssrQueryPipeline->ssrOutputSampler, ssrQueryPipeline->ssrOutputImageView, VK_IMAGE_LAYOUT_GENERAL);
+    ssrAccumDebugTexture = ImGui_ImplVulkan_AddTexture(ssrQueryPipeline->ssrAccumSampler, ssrQueryPipeline->ssrAccumImageView, VK_IMAGE_LAYOUT_GENERAL);
 
 }
 
@@ -656,8 +657,12 @@ void Renderer::drawFrame()
     ImGui::NewFrame();
     ImGui::Begin("SSR Reconstruction");
     const float ssrDisplayScale = 0.75f;
-    ImGui::Image(ssrOutputDebugTexture, ImVec2(swapchain->swapChainExtent.width * ssrDisplayScale, swapchain->swapChainExtent.height * ssrDisplayScale));
+    static bool showAccumulated = true;
+    ImGui::Checkbox("Show accumulated", &showAccumulated);
+    ImGui::Image(showAccumulated ? ssrAccumDebugTexture : ssrOutputDebugTexture,
+    ImVec2(swapchain->swapChainExtent.width * ssrDisplayScale, swapchain->swapChainExtent.height * ssrDisplayScale));
     ImGui::End();
+
     ImGui::Begin("Debug");
     ImGui::Text("Camera Position: (%.2f, %.2f, %.2f)",
                 camera->position.x, camera->position.y, camera->position.z);
@@ -696,7 +701,17 @@ void Renderer::drawFrame()
     ImGui::SliderFloat("aperture z_i", &apZ, -10.0f, 10.0f);
     ssrQueryPipeline->setApertureOffset(apX, apZ);
 
-    static float sensorDist = 8.0f;
+    static float apertureRadius = 11.858f;   
+    ImGui::SliderFloat("aperture sample radius (mm)", &apertureRadius, 0.0f, 15.0f);
+    ImGui::TextWrapped("Radius of the disk accumulated over, centered on aperture x_i/z_i above. 0 = exactly today's single fixed-sample behavior.");
+    ssrQueryPipeline->setApertureSampleRadius(apertureRadius);
+
+    glm::vec2 debugOffset = ssrQueryPipeline->getDebugLastApertureOffset();
+    ImGui::Text("Actual sampled aperture point this frame: (%.4f, %.4f)  sample #%u",
+                debugOffset.x, debugOffset.y, ssrQueryPipeline->getDebugLastAccumSampleIndex());
+
+
+    static float sensorDist = 9.0f;
     ImGui::SliderFloat("sensor plane distance (mm)", &sensorDist, 0.0f, 20.0f);
     ImGui::TextWrapped("Distance from lens center to the virtual sensor. 8.0 = infinity focus, 11.0 = 0.1m focus (per lens/24mm.json). This is the manual-focus knob.");
     ssrQueryPipeline->setSensorPlaneDistance(sensorDist);
@@ -767,9 +782,13 @@ void Renderer::drawFrame()
     VkSubmitInfo submitInfo{};
     submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
 
-    VkSemaphore waitSemaphores[] = {imageAvailableSemaphores[currentFrame]};
-    VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT};
+    VkSemaphore waitSemaphores[] = {imageAvailableSemaphores[currentFrame], timelineSemaphore};
+    VkPipelineStageFlags waitStages[] = {VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT, VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT};
+    uint64_t waitValues[] = {0, frameNumber - 1};
     VkSemaphore signalSemaphores[] = {renderFinishedSemaphores[imageIndex], timelineSemaphore};
+
+    timelineSubmitInfo.waitSemaphoreValueCount = 2;
+    timelineSubmitInfo.pWaitSemaphoreValues = waitValues;
 
     submitInfo.pNext = &timelineSubmitInfo;
     submitInfo.waitSemaphoreCount = 1;
