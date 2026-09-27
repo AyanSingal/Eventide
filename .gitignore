@@ -420,3 +420,5 @@ build/
 .vscode/
 *.spv
 *.pdb
+# Sponza test scene: CRYENGINE-licensed, not redistributable here. See README to fetch it locally.
+models/Sponza/

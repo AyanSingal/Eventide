@@ -63,6 +63,7 @@ Shared headers: `VulkanTypes.h` (queue/swapchain structs, validation and extensi
   - [stb](https://github.com/nothings/stb)
   - [tinygltf](https://github.com/syoyo/tinygltf)
   - [Dear ImGui](https://github.com/ocornut/imgui) (docking branch)
+- Optional test scene: [Sponza](https://github.com/KhronosGroup/glTF-Sample-Assets/tree/main/Models/Sponza/glTF). Place the contents of its `glTF/` folder in `models/Sponza/`. It is CRYENGINE-licensed, so it is not included in this repository.
 
 ### Build
 
