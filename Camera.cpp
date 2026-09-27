@@ -1,15 +1,15 @@
 #include "Camera.h"
 
 Camera::Camera()
-    : position(2.5f, 0.3f, 3.5f),
+    : position(-10.0f, 0.7f, 0.0f), // west end of the courtyard, at eye height
       up(0.0f, 1.0f, 0.0f),
-      yaw(-135.0f),
+      yaw(0.0f), // looking along +x, down the long hall
       pitch(0.0f),
       fov(70.0f),
       speed(2.5f),
       sensitivity(0.1f),
       nearPlane(0.1f),
-      farPlane(10.0f)
+      farPlane(60.0f) // was 10m; the building is ~30m long
 {
     updateFront();
 }

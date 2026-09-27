@@ -669,7 +669,7 @@ void Renderer::drawFrame()
     ImGui::Separator();
 
     static float sensorDist = 9.0f;
-    ImGui::SliderFloat("Focus (sensor mm)", &sensorDist, 5.0f, 15.0f);
+    ImGui::SliderFloat("Focus (sensor mm)", &sensorDist, 8.3f, 9.2f, "%.3f");
     ssrQueryPipeline->setSensorPlaneDistance(sensorDist);
 
     static float apertureRadius = 0.8f;
@@ -689,6 +689,8 @@ void Renderer::drawFrame()
     else               ImGui::Text("  lens miss");
     if (rtResult.hit)  ImGui::Text("  RT   (%.2f, %.2f, %.2f)", rtResult.hitPosition.x, rtResult.hitPosition.y, rtResult.hitPosition.z);
     else               ImGui::Text("  RT   miss");
+    if (rtResult.hit)
+        ImGui::Text("  distance %.2f m", glm::length(glm::vec3(rtResult.hitPosition) - camera->position));
 
     if (ImGui::CollapsingHeader("Network test (training frame, rays travel -y)"))
     {

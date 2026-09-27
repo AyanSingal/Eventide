@@ -31,5 +31,5 @@ private:
     CommandManager* commandManager = nullptr;
     std::vector<glm::mat4> modelMatrices;
     void buildBLAS(VulkanModel &model);
-    void buildTLAS();
+    void buildTLAS(VulkanModel &model);
 };

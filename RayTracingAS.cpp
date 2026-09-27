@@ -7,7 +7,7 @@ void RayTracingAS::init(VulkanContext &context, ResourceManager &resourceManager
     this->commandManager = &commandManager;
     this->modelMatrices = modelMatrices;
     buildBLAS(model);
-    buildTLAS();
+    buildTLAS(model);
 }
 
 void RayTracingAS::buildBLAS(VulkanModel &model)
@@ -117,7 +117,7 @@ void RayTracingAS::buildBLAS(VulkanModel &model)
     std::cout << "Built " << BLASes.size() << " BLASes" << std::endl;
 }
 
-void RayTracingAS::buildTLAS()
+void RayTracingAS::buildTLAS(VulkanModel &model)
 {
     std::vector<VkAccelerationStructureInstanceKHR> instances;
 
@@ -129,19 +129,20 @@ void RayTracingAS::buildTLAS()
         addrInfo.accelerationStructure = BLASes[i].blasHandle;
         VkDeviceAddress blasAddress = context->vkGetAccelerationStructureDeviceAddressKHR(context->device, &addrInfo);
 
-        glm::mat4 model = modelMatrices[0];
+        glm::mat4 instanceTransform = modelMatrices[0];
         VkTransformMatrixKHR transform{};
         for (int row = 0; row < 3; row++)
         {
             for (int col = 0; col < 4; col++)
             {
-                transform.matrix[row][col] = model[col][row]; //transpose the matrix
+                transform.matrix[row][col] = instanceTransform[col][row]; // transpose the matrix
             }
         }
 
         VkAccelerationStructureInstanceKHR instance{};
         instance.transform = transform;
-        instance.instanceCustomIndex = i;
+        uint32_t materialIndex = static_cast<uint32_t>(model.subMeshes[i].materialIndex);
+        instance.instanceCustomIndex = (materialIndex << 16) | static_cast<uint32_t>(i);
         instance.mask = 0xFF;
         instance.instanceShaderBindingTableRecordOffset = 0;
         instance.flags = VK_GEOMETRY_INSTANCE_TRIANGLE_FACING_CULL_DISABLE_BIT_KHR;

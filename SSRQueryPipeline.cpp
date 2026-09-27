@@ -414,8 +414,8 @@ void SSRQueryPipeline::updateQuery()
     ubo.proj = proj;
     ubo.viewInverse = glm::inverse(view);
     ubo.projInverse = glm::inverse(proj);
-    ubo.maxDistance = 20.0f;
-    ubo.stepSize = 0.05f;
+    ubo.maxDistance = 40.0f;
+    ubo.stepSize = 0.1f;
     ubo.imageWidth = swapchain->swapChainExtent.width;
     ubo.imageHeight = swapchain->swapChainExtent.height;
     ubo.apertureOffset = glm::vec2(apertureOffsetX + jitterX, apertureOffsetZ + jitterZ);

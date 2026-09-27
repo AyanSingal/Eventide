@@ -30,7 +30,10 @@ layout(set = 0, binding = 5) uniform sampler2D textures[];
 
 void main()
 {
-    int meshId = gl_InstanceCustomIndexEXT;
+    // Unpack the two indices RayTracingAS packed into the custom index.
+    int meshId = gl_InstanceCustomIndexEXT & 0xFFFF;
+    int materialId = gl_InstanceCustomIndexEXT >> 16;
+
 
     uint i0 = indices[nonuniformEXT(meshId)].i[gl_PrimitiveID * 3 + 0];
     uint i1 = indices[nonuniformEXT(meshId)].i[gl_PrimitiveID * 3 + 1];
@@ -50,7 +53,7 @@ void main()
     normal = normalize(vec3(gl_ObjectToWorldEXT * vec4(normal, 0.0)));
 
     // Sample base color
-    vec3 baseColor = texture(textures[nonuniformEXT(meshId)], texCoord).rgb;
+    vec3 baseColor = texture(textures[nonuniformEXT(materialId)], texCoord).rgb;
 
     // Directional light coming from above and slightly to the side
     vec3 lightDir = normalize(vec3(0.5, 1.0, 0.3));

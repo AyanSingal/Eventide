@@ -21,7 +21,7 @@
 const uint32_t WIDTH = 2200;
 const uint32_t HEIGHT = 1400;
 
-const std::string MODEL_PATH = "models/FlightHelmet/FlightHelmet.gltf";
+const std::string MODEL_PATH = "models/Sponza/Sponza.gltf";
 
 class Eventide
 {
@@ -55,8 +55,12 @@ private:
 
 
     glm::mat4 baseRotation = glm::rotate(glm::mat4(1.0f), glm::radians(-90.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-    std::vector<glm::mat4> modelMatrices = {glm::translate(glm::mat4(1.0f), glm::vec3(-1.0f, 0.0f, 0.0f)) * baseRotation, 
-                                            glm::translate(glm::mat4(1.0f), glm::vec3(1.0f, 0.0f, 0.0f)) * baseRotation};
+    
+    // Sponza's glTF node scales it by 0.008 (centimetres -> metres). Our loader
+    // ignores node transforms, so we apply that scale here instead.
+    std::vector<glm::mat4> modelMatrices = {
+        glm::scale(glm::mat4(1.0f), glm::vec3(0.008f))};
+
 
     void initWindow()
     {
